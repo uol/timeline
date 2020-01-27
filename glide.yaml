@@ -1,0 +1,18 @@
+package: github.com/uol/timeline
+import:
+- package: github.com/uol/gobol
+  version: ~1.30.0
+  subpackages:
+  - hashing
+  - logh
+  - util
+- package: github.com/uol/serializer
+  version: ~1.2.2
+  subpackages:
+  - json
+  - opentsdb
+testImport:
+- package: github.com/stretchr/testify
+  version: ~1.4.0
+  subpackages:
+  - assert

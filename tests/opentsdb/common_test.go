@@ -10,7 +10,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/uol/gobol/timeline"
+	"github.com/uol/timeline"
 )
 
 /**

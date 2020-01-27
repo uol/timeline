@@ -9,9 +9,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/uol/gobol/structs"
-	"github.com/uol/gobol/tester/httpserver"
-	"github.com/uol/gobol/timeline"
+	"github.com/uol/gotest"
+	"github.com/uol/timeline"
 )
 
 /**
@@ -23,8 +22,8 @@ import (
 func createTimelineManager(start bool) *timeline.Manager {
 
 	backend := timeline.Backend{
-		Host: httpserver.TestServerHost,
-		Port: httpserver.TestServerPort,
+		Host: gotest.TestServerHost,
+		Port: gotest.TestServerPort,
 	}
 
 	transport := createHTTPTransport()
@@ -47,7 +46,7 @@ func createTimelineManager(start bool) *timeline.Manager {
 // testSerializeCompareNumber - compares a serialized json and a json struct
 func testSerializeCompareNumber(t *testing.T, text string, expected interface{}) bool {
 
-	var actual []structs.NumberPoint
+	var actual []timeline.NumberPoint
 	err := json.Unmarshal([]byte(text), &actual)
 	if !assert.Nil(t, err, "error unmarshalling to number point") {
 		return false
@@ -59,7 +58,7 @@ func testSerializeCompareNumber(t *testing.T, text string, expected interface{})
 // testSerializeCompareText - compares a serialized json and a json struct
 func testSerializeCompareText(t *testing.T, text string, expected interface{}) bool {
 
-	var actual []structs.TextPoint
+	var actual []timeline.TextPoint
 	err := json.Unmarshal([]byte(text), &actual)
 	if !assert.Nil(t, err, "error unmarshalling to text point") {
 		return false
@@ -69,7 +68,7 @@ func testSerializeCompareText(t *testing.T, text string, expected interface{}) b
 }
 
 // testRequestData - tests the request data
-func testRequestData(t *testing.T, requestData *httpserver.RequestData, expected interface{}, isNumber bool) bool {
+func testRequestData(t *testing.T, requestData *gotest.RequestData, expected interface{}, isNumber bool) bool {
 
 	result := true
 
@@ -101,12 +100,12 @@ func testTextPoint(t *testing.T, expected interface{}, actual interface{}) bool 
 		return false
 	}
 
-	expectedNumbers, ok := expected.([]*structs.TextPoint)
+	expectedNumbers, ok := expected.([]*timeline.TextPoint)
 	if !ok && !assert.True(t, ok, "expected value must be a text point type") {
 		return false
 	}
 
-	actualNumbers, ok := actual.([]structs.TextPoint)
+	actualNumbers, ok := actual.([]timeline.TextPoint)
 	if !ok && !assert.True(t, ok, "actual value must be a text point type") {
 		return false
 	}
@@ -143,12 +142,12 @@ func testNumberPoint(t *testing.T, expected interface{}, actual interface{}) boo
 		return false
 	}
 
-	expectedNumbers, ok := expected.([]*structs.NumberPoint)
+	expectedNumbers, ok := expected.([]*timeline.NumberPoint)
 	if !ok && !assert.True(t, ok, "expected value must be a number point type") {
 		return false
 	}
 
-	actualNumbers, ok := actual.([]structs.NumberPoint)
+	actualNumbers, ok := actual.([]timeline.NumberPoint)
 	if !ok && !assert.True(t, ok, "actual value must be a number point type") {
 		return false
 	}
@@ -175,7 +174,7 @@ func testNumberPoint(t *testing.T, expected interface{}, actual interface{}) boo
 }
 
 // toGenericParametersN - converts a number point to generic parameters
-func toGenericParametersN(point *structs.NumberPoint) []interface{} {
+func toGenericParametersN(point *timeline.NumberPoint) []interface{} {
 
 	return []interface{}{
 		"metric", point.Metric,
@@ -186,7 +185,7 @@ func toGenericParametersN(point *structs.NumberPoint) []interface{} {
 }
 
 // toGenericParametersT - converts a number point to generic parameters
-func toGenericParametersT(point *structs.TextPoint) []interface{} {
+func toGenericParametersT(point *timeline.TextPoint) []interface{} {
 
 	return []interface{}{
 		"metric", point.Metric,
@@ -214,8 +213,8 @@ func TestSendNumber(t *testing.T) {
 
 	<-time.After(2 * time.Second)
 
-	requestData := httpserver.WaitForHTTPServerRequest(s)
-	testRequestData(t, requestData, []*structs.NumberPoint{number}, true)
+	requestData := gotest.WaitForHTTPServerRequest(s)
+	testRequestData(t, requestData, []*timeline.NumberPoint{number}, true)
 }
 
 // TestSendText - tests when the lib fires a event
@@ -234,8 +233,8 @@ func TestSendText(t *testing.T) {
 
 	<-time.After(2 * time.Second)
 
-	requestData := httpserver.WaitForHTTPServerRequest(s)
-	testRequestData(t, requestData, []*structs.TextPoint{text}, false)
+	requestData := gotest.WaitForHTTPServerRequest(s)
+	testRequestData(t, requestData, []*timeline.TextPoint{text}, false)
 }
 
 // TestSendNumberArray - tests when the lib fires a event
@@ -247,7 +246,7 @@ func TestSendNumberArray(t *testing.T) {
 	m := createTimelineManager(true)
 	defer m.Shutdown()
 
-	numbers := []*structs.NumberPoint{newNumberPoint(1), newNumberPoint(2), newNumberPoint(3)}
+	numbers := []*timeline.NumberPoint{newNumberPoint(1), newNumberPoint(2), newNumberPoint(3)}
 
 	for _, n := range numbers {
 		err := m.SendHTTP(numberPoint, toGenericParametersN(n)...)
@@ -256,7 +255,7 @@ func TestSendNumberArray(t *testing.T) {
 
 	<-time.After(2 * time.Second)
 
-	requestData := httpserver.WaitForHTTPServerRequest(s)
+	requestData := gotest.WaitForHTTPServerRequest(s)
 	testRequestData(t, requestData, numbers, true)
 }
 
@@ -269,7 +268,7 @@ func TestSendTextArray(t *testing.T) {
 	m := createTimelineManager(true)
 	defer m.Shutdown()
 
-	texts := []*structs.TextPoint{newTextPoint("1"), newTextPoint("2"), newTextPoint("3")}
+	texts := []*timeline.TextPoint{newTextPoint("1"), newTextPoint("2"), newTextPoint("3")}
 
 	for _, n := range texts {
 		err := m.SendHTTP(textPoint, toGenericParametersT(n)...)
@@ -278,7 +277,7 @@ func TestSendTextArray(t *testing.T) {
 
 	<-time.After(2 * time.Second)
 
-	requestData := httpserver.WaitForHTTPServerRequest(s)
+	requestData := gotest.WaitForHTTPServerRequest(s)
 	testRequestData(t, requestData, texts, false)
 }
 
@@ -314,8 +313,8 @@ func TestSendCustomNumber(t *testing.T) {
 
 	<-time.After(2 * time.Second)
 
-	requestData := httpserver.WaitForHTTPServerRequest(s)
-	testRequestData(t, requestData, []*structs.NumberPoint{number}, true)
+	requestData := gotest.WaitForHTTPServerRequest(s)
+	testRequestData(t, requestData, []*timeline.NumberPoint{number}, true)
 }
 
 // TestSendCustomText - tests configuring the json variables
@@ -350,8 +349,8 @@ func TestSendCustomText(t *testing.T) {
 
 	<-time.After(2 * time.Second)
 
-	requestData := httpserver.WaitForHTTPServerRequest(s)
-	testRequestData(t, requestData, []*structs.TextPoint{text}, false)
+	requestData := gotest.WaitForHTTPServerRequest(s)
+	testRequestData(t, requestData, []*timeline.TextPoint{text}, false)
 }
 
 // TestNumberSerialization - tests configuring the json variables
@@ -367,7 +366,7 @@ func TestNumberSerialization(t *testing.T) {
 		return
 	}
 
-	testSerializeCompareNumber(t, fmt.Sprintf("[%s]", serialized), []*structs.NumberPoint{number})
+	testSerializeCompareNumber(t, fmt.Sprintf("[%s]", serialized), []*timeline.NumberPoint{number})
 }
 
 // TestTextSerialization - tests configuring the json variables
@@ -383,5 +382,5 @@ func TestTextSerialization(t *testing.T) {
 		return
 	}
 
-	testSerializeCompareText(t, fmt.Sprintf("[%s]", serialized), []*structs.TextPoint{text})
+	testSerializeCompareText(t, fmt.Sprintf("[%s]", serialized), []*timeline.TextPoint{text})
 }

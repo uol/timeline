@@ -4,10 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/uol/gobol/hashing"
-	"github.com/uol/gobol/structs"
-	"github.com/uol/gobol/tester/httpserver"
-	"github.com/uol/gobol/timeline"
+	"github.com/uol/hashing"
+	"github.com/uol/gotest"
+	"github.com/uol/timeline"
 )
 
 /**
@@ -19,8 +18,8 @@ import (
 func createTimelineManagerF(start bool) *timeline.Manager {
 
 	backend := timeline.Backend{
-		Host: httpserver.TestServerHost,
-		Port: httpserver.TestServerPort,
+		Host: gotest.TestServerHost,
+		Port: gotest.TestServerPort,
 	}
 
 	transport := createHTTPTransport()
@@ -51,7 +50,7 @@ func createTimelineManagerF(start bool) *timeline.Manager {
 }
 
 // toGenericParameters - converts a number point to generic parameters
-func toGenericParameters(point *structs.NumberPoint) []interface{} {
+func toGenericParameters(point *timeline.NumberPoint) []interface{} {
 
 	return []interface{}{
 		"metric", point.Metric,
@@ -82,8 +81,8 @@ func testFlatOperation(t *testing.T, operation timeline.FlatOperation, expectedV
 
 	number.Value = expectedValue
 
-	requestData := httpserver.WaitForHTTPServerRequest(s)
-	testRequestData(t, requestData, []*structs.NumberPoint{number}, true)
+	requestData := gotest.WaitForHTTPServerRequest(s)
+	testRequestData(t, requestData, []*timeline.NumberPoint{number}, true)
 }
 
 // TestSendSum - tests the sum operation

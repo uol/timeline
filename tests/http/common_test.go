@@ -4,9 +4,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/uol/gobol/structs"
-	"github.com/uol/gobol/tester/httpserver"
-	"github.com/uol/gobol/timeline"
+	"github.com/uol/gotest"
+	"github.com/uol/timeline"
 )
 
 /**
@@ -15,13 +14,13 @@ import (
 **/
 
 // createTimeseriesBackend - creates a new test server simulating a timeseries backend
-func createTimeseriesBackend() *httpserver.HTTPServer {
+func createTimeseriesBackend() *gotest.HTTPServer {
 
 	headers := http.Header{}
 	headers.Add("Content-type", "application/json")
 
-	responses := httpserver.ResponseData{
-		RequestData: httpserver.RequestData{
+	responses := gotest.ResponseData{
+		RequestData: gotest.RequestData{
 			URI:     "/api/put",
 			Method:  "PUT",
 			Headers: headers,
@@ -29,7 +28,7 @@ func createTimeseriesBackend() *httpserver.HTTPServer {
 		Status: 201,
 	}
 
-	return httpserver.CreateNewTestHTTPServer([]httpserver.ResponseData{responses})
+	return gotest.CreateNewTestHTTPServer([]gotest.ResponseData{responses})
 }
 
 const (
@@ -61,7 +60,7 @@ func createHTTPTransport() *timeline.HTTPTransport {
 
 	transport.AddJSONMapping(
 		numberPoint,
-		structs.NumberPoint{},
+		timeline.NumberPoint{},
 		"metric",
 		"value",
 		"timestamp",
@@ -70,7 +69,7 @@ func createHTTPTransport() *timeline.HTTPTransport {
 
 	transport.AddJSONMapping(
 		textPoint,
-		structs.TextPoint{},
+		timeline.TextPoint{},
 		"metric",
 		"text",
 		"timestamp",
@@ -81,10 +80,10 @@ func createHTTPTransport() *timeline.HTTPTransport {
 }
 
 // newNumberPoint - creates a new number point
-func newNumberPoint(value float64) *structs.NumberPoint {
+func newNumberPoint(value float64) *timeline.NumberPoint {
 
-	return &structs.NumberPoint{
-		Point: structs.Point{
+	return &timeline.NumberPoint{
+		Point: timeline.Point{
 			Metric:    "number-metric",
 			Timestamp: time.Now().Unix(),
 			Tags: map[string]string{
@@ -97,10 +96,10 @@ func newNumberPoint(value float64) *structs.NumberPoint {
 }
 
 // newTextPoint - creates a new text point
-func newTextPoint(text string) *structs.TextPoint {
+func newTextPoint(text string) *timeline.TextPoint {
 
-	return &structs.TextPoint{
-		Point: structs.Point{
+	return &timeline.TextPoint{
+		Point: timeline.Point{
 			Metric:    "text-metric",
 			Timestamp: time.Now().Unix(),
 			Tags: map[string]string{

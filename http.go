@@ -7,8 +7,8 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/uol/gobol/logh"
-	"github.com/uol/gobol/util"
+	"github.com/uol/funks"
+	"github.com/uol/logh"
 	serializer "github.com/uol/serializer/json"
 )
 
@@ -65,7 +65,7 @@ func NewHTTPTransport(configuration *HTTPTransportConfig) (*HTTPTransport, error
 			loggers:           logh.CreateContextualLogger("pkg", "timeline/http"),
 		},
 		configuration: configuration,
-		httpClient:    util.CreateHTTPClient(configuration.RequestTimeout, true),
+		httpClient:    funks.CreateHTTPClient(configuration.RequestTimeout, true),
 		serializer:    s,
 	}
 

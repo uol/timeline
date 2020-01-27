@@ -6,7 +6,7 @@ import (
 	"net"
 	"time"
 
-	"github.com/uol/gobol/logh"
+	"github.com/uol/logh"
 	serializer "github.com/uol/serializer/opentsdb"
 )
 

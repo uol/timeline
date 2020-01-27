@@ -6,8 +6,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/uol/gobol/hashing"
-	"github.com/uol/gobol/logh"
+	"github.com/uol/hashing"
+	"github.com/uol/logh"
 )
 
 /**

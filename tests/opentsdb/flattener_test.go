@@ -7,8 +7,8 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/uol/gobol/hashing"
-	"github.com/uol/gobol/timeline"
+	"github.com/uol/hashing"
+	"github.com/uol/timeline"
 	serializer "github.com/uol/serializer/opentsdb"
 )
 

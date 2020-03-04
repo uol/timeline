@@ -225,46 +225,6 @@ func (t *OpenTSDBTransport) MatchType(tt transportType) bool {
 	return tt == typeOpenTSDB
 }
 
-// DataChannelItemToFlattenedPoint - converts the data channel item to the flattened point one
-func (t *OpenTSDBTransport) DataChannelItemToFlattenedPoint(operation FlatOperation, instance interface{}) (*FlattenerPoint, error) {
-
-	item, ok := instance.(*serializer.ArrayItem)
-	if !ok {
-		return nil, fmt.Errorf("error casting instance to data channel item")
-	}
-
-	hashParameters := []interface{}{}
-	hashParameters = append(hashParameters, operation, item.Metric)
-	hashParameters = append(hashParameters, item.Tags...)
-
-	if item.Timestamp <= 0 {
-		item.Timestamp = time.Now().Unix()
-	}
-
-	return &FlattenerPoint{
-		value:          item.Value,
-		hashParameters: hashParameters,
-		flattenerPointData: flattenerPointData{
-			operation:       operation,
-			timestamp:       item.Timestamp,
-			dataChannelItem: *item,
-		},
-	}, nil
-}
-
-// FlattenedPointToDataChannelItem - converts the flattened point to the data channel one
-func (t *OpenTSDBTransport) FlattenedPointToDataChannelItem(point *FlattenerPoint) (interface{}, error) {
-
-	item, ok := point.dataChannelItem.(serializer.ArrayItem)
-	if !ok {
-		return nil, fmt.Errorf("error casting point's data channel item")
-	}
-
-	item.Value = point.value
-
-	return item, nil
-}
-
 // retryConnect - connects the telnet client
 func (t *OpenTSDBTransport) retryConnect() {
 

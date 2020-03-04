@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	serializer "github.com/uol/serializer/opentsdb"
 	"github.com/uol/timeline"
 )
 
@@ -97,4 +98,19 @@ func handleConnection(t *testing.T, c chan string, conn net.Conn) {
 	}
 
 	c <- (string)(bytes.Trim(buffer, "\x00"))
+}
+
+// newArrayItem - creates a new array item
+func newArrayItem(metric string, value float64) serializer.ArrayItem {
+
+	return serializer.ArrayItem{
+		Metric:    metric,
+		Timestamp: time.Now().Unix(),
+		Value:     value,
+		Tags: []interface{}{
+			"tagk1", "tagv1",
+			"tagk2", "tagv2",
+			"tagk3", "tagv3",
+		},
+	}
 }

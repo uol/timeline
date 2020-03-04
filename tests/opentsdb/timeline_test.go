@@ -2,15 +2,18 @@ package timeline_opentsdb_test
 
 import (
 	"fmt"
+	"math"
 	"math/rand"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 
-	"github.com/uol/timeline"
 	serializer "github.com/uol/serializer/opentsdb"
+	"github.com/uol/timeline"
 )
 
 /**
@@ -28,7 +31,7 @@ func createTimelineManager(start bool, port int) *timeline.Manager {
 
 	transport := createOpenTSDBTransport()
 
-	manager, err := timeline.NewManager(transport, &backend)
+	manager, err := timeline.NewManager(transport, nil, nil, &backend)
 	if err != nil {
 		panic(err)
 	}
@@ -82,10 +85,11 @@ func TestSingleInput(t *testing.T) {
 
 	port := generatePort()
 
-	c := make(chan string, 3)
+	c := make(chan string, 100)
 	go listenTelnet(t, c, port)
 
 	m := createTimelineManager(true, port)
+	defer m.Shutdown()
 
 	testValue(t, c, m,
 		serializer.ArrayItem{
@@ -106,10 +110,11 @@ func TestMultiInput(t *testing.T) {
 
 	port := generatePort()
 
-	c := make(chan string, 3)
+	c := make(chan string, 100)
 	go listenTelnet(t, c, port)
 
 	m := createTimelineManager(true, port)
+	defer m.Shutdown()
 
 	testValue(t, c, m,
 		serializer.ArrayItem{
@@ -150,7 +155,7 @@ func TestSerialization(t *testing.T) {
 
 	port := generatePort()
 
-	c := make(chan string, 3)
+	c := make(chan string, 100)
 	go listenTelnet(t, c, port)
 
 	m := createTimelineManager(false, port)
@@ -172,5 +177,51 @@ func TestSerialization(t *testing.T) {
 		return
 	}
 
-	assert.Equal(t, expected, serialized, "serialization not matches")
+	compareOpenTSDBCmd(t, expected, serialized)
+}
+
+// compareOpenTSDBCmd - compares two opentsdb commands
+func compareOpenTSDBCmd(t *testing.T, expected, serialized string) bool {
+
+	r := regexp.MustCompile("(put [a-zA-Z0-9\\-\\.]+) ([0-9]+) ([0-9Ee\\+\\-\\.]+) ([a-zA-Z0-9\\-\\.= ]+)")
+	expectedGroups := r.FindStringSubmatch(expected)
+	serializedGroups := r.FindStringSubmatch(serialized)
+
+	if !assert.Equalf(t, len(expectedGroups), len(serializedGroups), "expected and serialized regexp groups length not matches: %d and %d", len(expectedGroups), len(serializedGroups)) {
+		return false
+	}
+
+	for i := 1; i < len(expectedGroups); i++ { //skips the first group (all)
+
+		//skips the second group (value)
+		if i != 2 && i != 3 && !assert.Equalf(t, expectedGroups[i], serializedGroups[i], "expected serialization not matches: %s != %s", expectedGroups[i], serializedGroups[i]) {
+			return false
+		}
+	}
+
+	expectedTimestamp, err := strconv.ParseFloat(expectedGroups[2], 64)
+	if !assert.NoErrorf(t, err, "no error expected when parsing expected timestamp: %s", expectedGroups[2]) {
+		return false
+	}
+
+	serializedTimestamp, err := strconv.ParseFloat(serializedGroups[2], 64)
+	if !assert.NoErrorf(t, err, "no error expected when parsing serialized timestamp: %s", serializedGroups[2]) {
+		return false
+	}
+
+	if !assert.Truef(t, math.Abs(expectedTimestamp-serializedTimestamp) <= 5, "values does not matches: %f != %f", expectedTimestamp, serializedTimestamp) {
+		return false
+	}
+
+	expectedValue, err := strconv.ParseFloat(expectedGroups[3], 64)
+	if !assert.NoErrorf(t, err, "no error expected when parsing expected value: %s", expectedGroups[3]) {
+		return false
+	}
+
+	serializedValue, err := strconv.ParseFloat(serializedGroups[3], 64)
+	if !assert.NoErrorf(t, err, "no error expected when parsing serialized value: %s", serializedGroups[3]) {
+		return false
+	}
+
+	return assert.Truef(t, math.Abs(expectedValue-serializedValue) < 0.000001, "values does not matches: %f != %f", expectedValue, serializedValue)
 }

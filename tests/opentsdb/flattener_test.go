@@ -2,14 +2,15 @@ package timeline_opentsdb_test
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/uol/hashing"
-	"github.com/uol/timeline"
 	serializer "github.com/uol/serializer/opentsdb"
+	"github.com/uol/timeline"
 )
 
 /**
@@ -27,17 +28,14 @@ func createTimelineManagerF(start bool, port int) *timeline.Manager {
 
 	transport := createOpenTSDBTransport()
 
-	conf := &timeline.FlattenerConfig{
+	conf := &timeline.DataTransformerConf{
 		CycleDuration:    time.Millisecond * 900,
 		HashingAlgorithm: hashing.SHA256,
 	}
 
-	flattener, err := timeline.NewFlattener(transport, conf)
-	if err != nil {
-		panic(err)
-	}
+	flattener := timeline.NewFlattener(conf)
 
-	manager, err := timeline.NewManagerF(flattener, &backend)
+	manager, err := timeline.NewManager(transport, flattener, nil, &backend)
 	if err != nil {
 		panic(err)
 	}
@@ -52,6 +50,32 @@ func createTimelineManagerF(start bool, port int) *timeline.Manager {
 	return manager
 }
 
+// buildOpenTSDBCmd - build the opentsdb commands
+func buildOpenTSDBCmd(items []serializer.ArrayItem) []string {
+
+	lines := make([]string, len(items))
+
+	for i := 0; i < len(items); i++ {
+
+		tagsBuffer := strings.Builder{}
+
+		for j := 0; j < len(items[i].Tags); j += 2 {
+			tagsBuffer.WriteString(items[i].Tags[j].(string))
+			tagsBuffer.WriteString("=")
+			tagsBuffer.WriteString(items[i].Tags[j+1].(string))
+			if j < len(items[i].Tags)-2 {
+				tagsBuffer.WriteString(" ")
+			}
+		}
+
+		lines[i] = fmt.Sprintf("put %s %d %.0f %s\n", items[i].Metric, items[i].Timestamp, items[i].Value, tagsBuffer.String())
+	}
+
+	sort.Strings(lines)
+
+	return lines
+}
+
 // testFlattenedValue - tests some inputed values
 func testFlattenedValue(t *testing.T, c chan string, m *timeline.Manager, operation timeline.FlatOperation, items []serializer.ArrayItem, expectedItems []serializer.ArrayItem) {
 
@@ -63,27 +87,38 @@ func testFlattenedValue(t *testing.T, c chan string, m *timeline.Manager, operat
 		}
 	}
 
-	lines := <-c
+	testItemsAgainstReceivedLines(t, c, expectedItems)
+}
 
-	mainBuffer := strings.Builder{}
+// testItemsAgainstReceivedLines - test the expected items againt the received lines
+func testItemsAgainstReceivedLines(t *testing.T, c chan string, expectedItems []serializer.ArrayItem) {
+
+	expectedLines := buildOpenTSDBCmd(expectedItems)
+
+	receivedText := <-c
+
+	split := strings.Split(receivedText, "\n")
+	lines := []string{}
+
+	for i := 0; i < len(split); i++ {
+		line := strings.TrimSpace(split[i])
+		if len(line) > 0 {
+			lines = append(lines, line)
+		}
+	}
+
+	if !assert.Truef(t, len(expectedItems) == len(lines), "number of lines not match: %d != %d", len(expectedItems), len(lines)) {
+		return
+	}
+
+	sort.Strings(lines)
 
 	for i := 0; i < len(expectedItems); i++ {
 
-		tagsBuffer := strings.Builder{}
-
-		for j := 0; j < len(expectedItems[i].Tags); j += 2 {
-			tagsBuffer.WriteString(expectedItems[i].Tags[j].(string))
-			tagsBuffer.WriteString("=")
-			tagsBuffer.WriteString(expectedItems[i].Tags[j+1].(string))
-			if j < len(expectedItems[i].Tags)-2 {
-				tagsBuffer.WriteString(" ")
-			}
+		if !compareOpenTSDBCmd(t, expectedLines[i], lines[i]) {
+			return
 		}
-
-		mainBuffer.WriteString(fmt.Sprintf("put %s %d %.0f %s\n", expectedItems[i].Metric, expectedItems[i].Timestamp, expectedItems[i].Value, tagsBuffer.String()))
 	}
-
-	assert.Equal(t, mainBuffer.String(), lines, "lines does not match")
 }
 
 // TestSum - tests the sum operation
@@ -91,20 +126,13 @@ func TestSum(t *testing.T) {
 
 	port := generatePort()
 
-	c := make(chan string, 3)
+	c := make(chan string, 100)
 	go listenTelnet(t, c, port)
 
 	m := createTimelineManagerF(true, port)
+	defer m.Shutdown()
 
-	item := serializer.ArrayItem{
-		Value:     10.0,
-		Timestamp: time.Now().Unix(),
-		Metric:    "sum",
-		Tags: []interface{}{
-			"ttl", "1",
-			"ksid", "testksid",
-		},
-	}
+	item := newArrayItem("sum", 10.0)
 
 	expected := item
 	expected.Value = 30.0
@@ -121,20 +149,13 @@ func TestAvg(t *testing.T) {
 
 	port := generatePort()
 
-	c := make(chan string, 3)
+	c := make(chan string, 100)
 	go listenTelnet(t, c, port)
 
 	m := createTimelineManagerF(true, port)
 
-	item1 := serializer.ArrayItem{
-		Value:     10.0,
-		Timestamp: time.Now().Unix(),
-		Metric:    "avg",
-		Tags: []interface{}{
-			"ttl", "1",
-			"ksid", "testksid",
-		},
-	}
+	item1 := newArrayItem("avg", 10.0)
+
 	item2 := item1
 	item2.Value = 4.0
 
@@ -153,20 +174,12 @@ func TestMax(t *testing.T) {
 
 	port := generatePort()
 
-	c := make(chan string, 3)
+	c := make(chan string, 100)
 	go listenTelnet(t, c, port)
 
 	m := createTimelineManagerF(true, port)
 
-	item1 := serializer.ArrayItem{
-		Value:     1.0,
-		Timestamp: time.Now().Unix(),
-		Metric:    "max",
-		Tags: []interface{}{
-			"ttl", "1",
-			"ksid", "testksid",
-		},
-	}
+	item1 := newArrayItem("max", 1.0)
 
 	item2 := item1
 	item2.Value = 4.0
@@ -189,20 +202,12 @@ func TestMin(t *testing.T) {
 
 	port := generatePort()
 
-	c := make(chan string, 3)
+	c := make(chan string, 100)
 	go listenTelnet(t, c, port)
 
 	m := createTimelineManagerF(true, port)
 
-	item1 := serializer.ArrayItem{
-		Value:     1.0,
-		Timestamp: time.Now().Unix(),
-		Metric:    "min",
-		Tags: []interface{}{
-			"ttl", "1",
-			"ksid", "testksid",
-		},
-	}
+	item1 := newArrayItem("min", 1.0)
 
 	item2 := item1
 	item2.Value = 4.0
@@ -225,20 +230,12 @@ func TestCount(t *testing.T) {
 
 	port := generatePort()
 
-	c := make(chan string, 3)
+	c := make(chan string, 100)
 	go listenTelnet(t, c, port)
 
 	m := createTimelineManagerF(true, port)
 
-	item1 := serializer.ArrayItem{
-		Value:     1.0,
-		Timestamp: time.Now().Unix(),
-		Metric:    "count",
-		Tags: []interface{}{
-			"ttl", "1",
-			"ksid", "testksid",
-		},
-	}
+	item1 := newArrayItem("count", 1.0)
 
 	item2 := item1
 	item2.Value = 4.0

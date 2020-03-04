@@ -1,5 +1,11 @@
 package timeline
 
+import (
+	"time"
+
+	"github.com/uol/hashing"
+)
+
 /**
 * All common structs used by the timeline library.
 * @author rnojiri
@@ -22,4 +28,12 @@ type NumberPoint struct {
 type TextPoint struct {
 	Point
 	Text string `json:"text"`
+}
+
+// DataTransformerConf - flattener configuration
+type DataTransformerConf struct {
+	CycleDuration    time.Duration
+	HashingAlgorithm hashing.Algorithm
+	HashSize         int
+	isSHAKE          bool
 }

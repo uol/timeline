@@ -15,8 +15,9 @@ import (
 
 // Manager - the parent of all event managers
 type Manager struct {
-	transport Transport
-	flattener *Flattener
+	transport   Transport
+	flattener   *Flattener
+	accumulator *Accumulator
 }
 
 // Backend - the destiny opentsdb backend
@@ -26,7 +27,7 @@ type Backend struct {
 }
 
 // NewManager - creates a timeline manager
-func NewManager(transport Transport, backend *Backend) (*Manager, error) {
+func NewManager(transport Transport, flattener, accumulator DataProcessor, backend *Backend) (*Manager, error) {
 
 	if transport == nil {
 		return nil, fmt.Errorf("transport implementation is required")
@@ -41,30 +42,22 @@ func NewManager(transport Transport, backend *Backend) (*Manager, error) {
 		return nil, err
 	}
 
-	return &Manager{
-		transport: transport,
-	}, nil
-}
-
-// NewManagerF - creates a timeline manager with flattener
-func NewManagerF(flattener *Flattener, backend *Backend) (*Manager, error) {
-
-	if flattener == nil {
-		return nil, fmt.Errorf("flattener implementation is required")
+	var f *Flattener
+	if flattener != nil {
+		flattener.SetTransport(transport)
+		f = flattener.(*Flattener)
 	}
 
-	if backend == nil {
-		return nil, fmt.Errorf("no backend configuration was found")
-	}
-
-	err := flattener.transport.ConfigureBackend(backend)
-	if err != nil {
-		return nil, err
+	var a *Accumulator
+	if accumulator != nil {
+		accumulator.SetTransport(transport)
+		a = accumulator.(*Accumulator)
 	}
 
 	return &Manager{
-		flattener: flattener,
-		transport: flattener.transport,
+		transport:   transport,
+		flattener:   f,
+		accumulator: a,
 	}, nil
 }
 
@@ -95,19 +88,20 @@ func (m *Manager) SerializeHTTP(schemaName string, parameters ...interface{}) (s
 // FlattenHTTP - flatten a point
 func (m *Manager) FlattenHTTP(operation FlatOperation, name string, parameters ...interface{}) error {
 
-	flattenerPoint, err := m.transport.DataChannelItemToFlattenedPoint(
-		operation,
+	point, err := m.transport.DataChannelItemToFlattenerPoint(
+		m.flattener.configuration,
 		&jsonSerializer.ArrayItem{
 			Name:       name,
 			Parameters: parameters,
 		},
+		operation,
 	)
 
 	if err != nil {
 		return err
 	}
 
-	return m.flattener.Add(flattenerPoint)
+	return m.flattener.Add(point.(*FlattenerPoint))
 }
 
 // SendOpenTSDB - sends a new data using the openTSDB transport
@@ -149,28 +143,59 @@ func (m *Manager) FlattenOpenTSDB(operation FlatOperation, value float64, timest
 		timestamp = time.Now().Unix()
 	}
 
-	flattenerPoint, err := m.transport.DataChannelItemToFlattenedPoint(
-		operation,
+	point, err := m.transport.DataChannelItemToFlattenerPoint(
+		m.flattener.configuration,
 		&openTSDBSerializer.ArrayItem{
 			Metric:    metric,
 			Tags:      tags,
 			Timestamp: timestamp,
 			Value:     value,
 		},
+		operation,
 	)
 
 	if err != nil {
 		return err
 	}
 
-	return m.flattener.Add(flattenerPoint)
+	return m.flattener.Add(point.(*FlattenerPoint))
+}
+
+// StoreDataToAccumulateHTTP - stores a data to accumulate
+func (m *Manager) StoreDataToAccumulateHTTP(name string, parameters ...interface{}) (string, error) {
+
+	return m.accumulator.Store(&jsonSerializer.ArrayItem{
+		Name:       name,
+		Parameters: parameters,
+	})
+}
+
+// StoreDataToAccumulateOpenTSDB - stores a data to accumulate
+func (m *Manager) StoreDataToAccumulateOpenTSDB(value float64, timestamp int64, metric string, tags ...interface{}) (string, error) {
+
+	return m.accumulator.Store(&openTSDBSerializer.ArrayItem{
+		Metric:    metric,
+		Tags:      tags,
+		Timestamp: timestamp,
+		Value:     value,
+	})
+}
+
+// IncrementAccumulatedData - stores a data to accumulate
+func (m *Manager) IncrementAccumulatedData(hash string) error {
+
+	return m.accumulator.Add(hash)
 }
 
 // Start - starts the manager
 func (m *Manager) Start() error {
 
 	if m.flattener != nil {
-		return m.flattener.Start()
+		m.flattener.Start()
+	}
+
+	if m.accumulator != nil {
+		m.accumulator.Start()
 	}
 
 	return m.transport.Start()
@@ -180,8 +205,12 @@ func (m *Manager) Start() error {
 func (m *Manager) Shutdown() {
 
 	if m.flattener != nil {
-		m.flattener.Close()
+		m.flattener.Stop()
+		return
+	}
 
+	if m.accumulator != nil {
+		m.accumulator.Stop()
 		return
 	}
 

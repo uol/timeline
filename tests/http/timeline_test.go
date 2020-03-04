@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"reflect"
+	"sort"
 	"testing"
 	"time"
 
@@ -28,7 +29,7 @@ func createTimelineManager(start bool) *timeline.Manager {
 
 	transport := createHTTPTransport()
 
-	manager, err := timeline.NewManager(transport, &backend)
+	manager, err := timeline.NewManager(transport, nil, nil, &backend)
 	if err != nil {
 		panic(err)
 	}
@@ -44,7 +45,7 @@ func createTimelineManager(start bool) *timeline.Manager {
 }
 
 // testSerializeCompareNumber - compares a serialized json and a json struct
-func testSerializeCompareNumber(t *testing.T, text string, expected interface{}) bool {
+func testSerializeCompareNumber(t *testing.T, text string, expected interface{}, ignoreTimestamp bool) bool {
 
 	var actual []timeline.NumberPoint
 	err := json.Unmarshal([]byte(text), &actual)
@@ -52,7 +53,7 @@ func testSerializeCompareNumber(t *testing.T, text string, expected interface{})
 		return false
 	}
 
-	return testNumberPoint(t, expected, actual)
+	return testNumberPoint(t, expected, actual, ignoreTimestamp)
 }
 
 // testSerializeCompareText - compares a serialized json and a json struct
@@ -68,7 +69,7 @@ func testSerializeCompareText(t *testing.T, text string, expected interface{}) b
 }
 
 // testRequestData - tests the request data
-func testRequestData(t *testing.T, requestData *gotest.RequestData, expected interface{}, isNumber bool) bool {
+func testRequestData(t *testing.T, requestData *gotest.RequestData, expected interface{}, isNumber, ignoreTimestamp bool) bool {
 
 	result := true
 
@@ -80,7 +81,7 @@ func testRequestData(t *testing.T, requestData *gotest.RequestData, expected int
 	if result {
 
 		if isNumber {
-			return testSerializeCompareNumber(t, requestData.Body, expected)
+			return testSerializeCompareNumber(t, requestData.Body, expected, ignoreTimestamp)
 		}
 
 		return testSerializeCompareText(t, requestData.Body, expected)
@@ -132,7 +133,7 @@ func testTextPoint(t *testing.T, expected interface{}, actual interface{}) bool 
 }
 
 // testNumberPoint - compares two points
-func testNumberPoint(t *testing.T, expected interface{}, actual interface{}) bool {
+func testNumberPoint(t *testing.T, expected interface{}, actual interface{}, ignoreTimestamp bool) bool {
 
 	if !assert.NotNil(t, expected, "expected value cannot be null") {
 		return false
@@ -152,6 +153,9 @@ func testNumberPoint(t *testing.T, expected interface{}, actual interface{}) boo
 		return false
 	}
 
+	sort.Sort(ByMetricP(expectedNumbers))
+	sort.Sort(ByMetric(actualNumbers))
+
 	if !assert.Len(t, actualNumbers, len(expectedNumbers), "expected %d number points", len(expectedNumbers)) {
 		return false
 	}
@@ -161,7 +165,14 @@ func testNumberPoint(t *testing.T, expected interface{}, actual interface{}) boo
 	for i := 0; i < len(expectedNumbers); i++ {
 
 		result = result && assert.Equal(t, expectedNumbers[i].Metric, actualNumbers[i].Metric, "number point's metric differs")
-		result = result && assert.Equal(t, expectedNumbers[i].Timestamp, actualNumbers[i].Timestamp, "number point's timestamp differs")
+
+		if !ignoreTimestamp {
+			result = result && assert.Equal(t, expectedNumbers[i].Timestamp, actualNumbers[i].Timestamp, "number point's timestamp differs")
+		} else {
+			result = result && assert.Greater(t, expectedNumbers[i].Timestamp, time.Now().Unix()-(60*1000), "expected a valid timestamp")
+			result = result && assert.Greater(t, actualNumbers[i].Timestamp, time.Now().Unix()-(60*1000), "expected a valid timestamp")
+		}
+
 		result = result && assert.True(t, reflect.DeepEqual(expectedNumbers[i].Tags, actualNumbers[i].Tags), "number point's tags differs")
 		result = result && assert.Equal(t, expectedNumbers[i].Value, actualNumbers[i].Value, "number point's value differs")
 
@@ -214,7 +225,7 @@ func TestSendNumber(t *testing.T) {
 	<-time.After(2 * time.Second)
 
 	requestData := gotest.WaitForHTTPServerRequest(s)
-	testRequestData(t, requestData, []*timeline.NumberPoint{number}, true)
+	testRequestData(t, requestData, []*timeline.NumberPoint{number}, true, false)
 }
 
 // TestSendText - tests when the lib fires a event
@@ -234,7 +245,7 @@ func TestSendText(t *testing.T) {
 	<-time.After(2 * time.Second)
 
 	requestData := gotest.WaitForHTTPServerRequest(s)
-	testRequestData(t, requestData, []*timeline.TextPoint{text}, false)
+	testRequestData(t, requestData, []*timeline.TextPoint{text}, false, false)
 }
 
 // TestSendNumberArray - tests when the lib fires a event
@@ -256,7 +267,7 @@ func TestSendNumberArray(t *testing.T) {
 	<-time.After(2 * time.Second)
 
 	requestData := gotest.WaitForHTTPServerRequest(s)
-	testRequestData(t, requestData, numbers, true)
+	testRequestData(t, requestData, numbers, true, false)
 }
 
 // TestSendTextArray - tests when the lib fires a event
@@ -278,7 +289,7 @@ func TestSendTextArray(t *testing.T) {
 	<-time.After(2 * time.Second)
 
 	requestData := gotest.WaitForHTTPServerRequest(s)
-	testRequestData(t, requestData, texts, false)
+	testRequestData(t, requestData, texts, false, false)
 }
 
 // TestSendCustomNumber - tests configuring the json variables
@@ -314,7 +325,7 @@ func TestSendCustomNumber(t *testing.T) {
 	<-time.After(2 * time.Second)
 
 	requestData := gotest.WaitForHTTPServerRequest(s)
-	testRequestData(t, requestData, []*timeline.NumberPoint{number}, true)
+	testRequestData(t, requestData, []*timeline.NumberPoint{number}, true, false)
 }
 
 // TestSendCustomText - tests configuring the json variables
@@ -350,7 +361,7 @@ func TestSendCustomText(t *testing.T) {
 	<-time.After(2 * time.Second)
 
 	requestData := gotest.WaitForHTTPServerRequest(s)
-	testRequestData(t, requestData, []*timeline.TextPoint{text}, false)
+	testRequestData(t, requestData, []*timeline.TextPoint{text}, false, false)
 }
 
 // TestNumberSerialization - tests configuring the json variables
@@ -366,7 +377,7 @@ func TestNumberSerialization(t *testing.T) {
 		return
 	}
 
-	testSerializeCompareNumber(t, fmt.Sprintf("[%s]", serialized), []*timeline.NumberPoint{number})
+	testSerializeCompareNumber(t, fmt.Sprintf("[%s]", serialized), []*timeline.NumberPoint{number}, false)
 }
 
 // TestTextSerialization - tests configuring the json variables

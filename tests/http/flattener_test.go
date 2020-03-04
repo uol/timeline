@@ -4,8 +4,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/uol/hashing"
 	"github.com/uol/gotest"
+	"github.com/uol/hashing"
 	"github.com/uol/timeline"
 )
 
@@ -24,17 +24,14 @@ func createTimelineManagerF(start bool) *timeline.Manager {
 
 	transport := createHTTPTransport()
 
-	conf := &timeline.FlattenerConfig{
+	conf := &timeline.DataTransformerConf{
 		CycleDuration:    time.Millisecond * 900,
 		HashingAlgorithm: hashing.SHA256,
 	}
 
-	flattener, err := timeline.NewFlattener(transport, conf)
-	if err != nil {
-		panic(err)
-	}
+	flattener := timeline.NewFlattener(conf)
 
-	manager, err := timeline.NewManagerF(flattener, &backend)
+	manager, err := timeline.NewManager(transport, flattener, nil, &backend)
 	if err != nil {
 		panic(err)
 	}
@@ -82,7 +79,7 @@ func testFlatOperation(t *testing.T, operation timeline.FlatOperation, expectedV
 	number.Value = expectedValue
 
 	requestData := gotest.WaitForHTTPServerRequest(s)
-	testRequestData(t, requestData, []*timeline.NumberPoint{number}, true)
+	testRequestData(t, requestData, []*timeline.NumberPoint{number}, true, false)
 }
 
 // TestSendSum - tests the sum operation

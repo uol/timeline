@@ -40,14 +40,27 @@ type Transport interface {
 	// MatchType - checks if this transport implementation matches the given type
 	MatchType(tt transportType) bool
 
-	// DataChannelItemToFlattenedPoint - converts the data channel item to the flattened point one
-	DataChannelItemToFlattenedPoint(operation FlatOperation, item interface{}) (*FlattenerPoint, error)
-
-	// FlattenedPointToDataChannelItem - converts the flattened point to the data channel item one
-	FlattenedPointToDataChannelItem(point *FlattenerPoint) (interface{}, error)
-
 	// Serialize - renders the text using the configured serializer
 	Serialize(item interface{}) (string, error)
+
+	// DataChannelItemToFlattenerPoint - converts the data channel item to the flattened point
+	DataChannelItemToFlattenerPoint(configuration *DataTransformerConf, item interface{}, operation FlatOperation) (Hashable, error)
+
+	// FlattenerPointToDataChannelItem - converts the flattened point to the data channel item
+	FlattenerPointToDataChannelItem(item *FlattenerPoint) (interface{}, error)
+
+	// DataChannelItemToAccumulatedData - converts the data channel item to the accumulated data
+	DataChannelItemToAccumulatedData(configuration *DataTransformerConf, item interface{}) (Hashable, error)
+
+	// AccumulatedDataToDataChannelItem - converts the accumulated data to the data channel item
+	AccumulatedDataToDataChannelItem(item *AccumulatedData) (interface{}, error)
+}
+
+// Hashable - a struct with hash function
+type Hashable interface {
+
+	// GetHash - return this instance hash
+	GetHash() string
 }
 
 // transportCore - implements a default transport behaviour

@@ -110,3 +110,15 @@ func newTextPoint(text string) *timeline.TextPoint {
 		Text: text,
 	}
 }
+
+type ByMetric []timeline.NumberPoint
+
+func (a ByMetric) Len() int           { return len(a) }
+func (a ByMetric) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByMetric) Less(i, j int) bool { return a[i].Metric < a[j].Metric }
+
+type ByMetricP []*timeline.NumberPoint
+
+func (a ByMetricP) Len() int           { return len(a) }
+func (a ByMetricP) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByMetricP) Less(i, j int) bool { return a[i].Metric < a[j].Metric }

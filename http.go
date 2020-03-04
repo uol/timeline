@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
-	"time"
 
 	"github.com/uol/funks"
 	"github.com/uol/logh"
@@ -151,88 +150,6 @@ func (t *HTTPTransport) TransferData(dataList []interface{}) error {
 func (t *HTTPTransport) MatchType(tt transportType) bool {
 
 	return tt == typeHTTP
-}
-
-// DataChannelItemToFlattenedPoint - converts the data channel item to the flattened point one
-func (t *HTTPTransport) DataChannelItemToFlattenedPoint(operation FlatOperation, instance interface{}) (*FlattenerPoint, error) {
-
-	item, ok := instance.(*serializer.ArrayItem)
-	if !ok {
-		return nil, fmt.Errorf("error casting instance to data channel item")
-	}
-
-	hashParameters := []interface{}{}
-	hashParameters = append(hashParameters, item.Name, operation)
-
-	valueFound := false
-	timestampFound := false
-	var value float64
-	var timestamp int64
-
-	for i := 0; i < len(item.Parameters); i++ {
-
-		if i%2 == 0 && (!valueFound || !timestampFound) {
-
-			key, ok := item.Parameters[i].(string)
-			if !ok {
-				return nil, fmt.Errorf("expecting a property name in parameter item: %s", item.Parameters[i])
-			}
-
-			if !valueFound && key == t.configuration.ValueProperty {
-				valueFound = true
-				value, ok = item.Parameters[i+1].(float64)
-				if !ok {
-					return nil, fmt.Errorf("expecting a float64 as value for parameter: %s", item.Parameters[i+1])
-				}
-
-				i++
-				continue
-			}
-
-			if !timestampFound && key == t.configuration.TimestampProperty {
-				timestampFound = true
-				timestamp, ok = item.Parameters[i+1].(int64)
-				if !ok {
-					return nil, fmt.Errorf("expecting a int64 as value for parameter: %s", item.Parameters[i+1])
-				}
-
-				i++
-				continue
-			}
-		}
-
-		hashParameters = append(hashParameters, item.Parameters[i])
-	}
-
-	if !timestampFound {
-		timestamp = time.Now().Unix()
-	}
-
-	return &FlattenerPoint{
-		value:          value,
-		hashParameters: hashParameters,
-		flattenerPointData: flattenerPointData{
-			operation: operation,
-			timestamp: timestamp,
-			dataChannelItem: serializer.ArrayItem{
-				Name:       item.Name,
-				Parameters: hashParameters[2:],
-			},
-		},
-	}, nil
-}
-
-// FlattenedPointToDataChannelItem - converts the flattened point to the data channel one
-func (t *HTTPTransport) FlattenedPointToDataChannelItem(point *FlattenerPoint) (interface{}, error) {
-
-	item, ok := point.dataChannelItem.(serializer.ArrayItem)
-	if !ok {
-		return nil, fmt.Errorf("error casting point's data channel item")
-	}
-
-	item.Parameters = append(item.Parameters, t.configuration.TimestampProperty, point.timestamp, t.configuration.ValueProperty, point.value)
-
-	return item, nil
 }
 
 // Start - starts this transport

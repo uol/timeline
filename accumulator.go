@@ -31,7 +31,7 @@ type AccumulatedData struct {
 	hash       string
 	data       interface{}
 	lastUpdate time.Time
-	ttl        *time.Duration
+	ttl        time.Duration
 	pointMap   *sync.Map
 	ttlManager *scheduler.Manager
 	logger     *logh.ContextualLogger
@@ -45,7 +45,7 @@ func (ad *AccumulatedData) GetHash() string {
 // Execute - implements the Job interface
 func (ad *AccumulatedData) Execute() {
 
-	if time.Now().Sub(ad.lastUpdate) > *ad.ttl {
+	if time.Now().Sub(ad.lastUpdate) > ad.ttl {
 
 		ad.pointMap.Delete(ad.hash)
 		ad.ttlManager.RemoveTask(ad.hash)
@@ -62,26 +62,18 @@ func (ad *AccumulatedData) Execute() {
 // Accumulator - the struct
 type Accumulator struct {
 	dataProcessorCore
-	accumulatorConf *AccumulatorConf
-	ttlManager      *scheduler.Manager
-}
-
-// AccumulatorConf - configuration for this
-type AccumulatorConf struct {
-	DataTransformerConf
-	DataTTL time.Duration
+	ttlManager *scheduler.Manager
 }
 
 // NewAccumulator - creates a new instance
-func NewAccumulator(configuration *AccumulatorConf) *Accumulator {
+func NewAccumulator(configuration *DataTransformerConf) *Accumulator {
 
 	configuration.isSHAKE = isShakeAlgorithm(configuration.HashingAlgorithm)
 
 	a := &Accumulator{
-		ttlManager:      scheduler.New(),
-		accumulatorConf: configuration,
+		ttlManager: scheduler.New(),
 		dataProcessorCore: dataProcessorCore{
-			configuration: &configuration.DataTransformerConf,
+			configuration: configuration,
 			pointMap:      sync.Map{},
 			terminateChan: make(chan struct{}, 1),
 			loggers:       logh.CreateContextualLogger("pkg", "timeline/accumulator"),
@@ -129,7 +121,7 @@ func (a *Accumulator) Add(hash string) error {
 }
 
 // Store - stores a reference
-func (a *Accumulator) Store(item interface{}) (string, error) {
+func (a *Accumulator) Store(item interface{}, ttl time.Duration) (string, error) {
 
 	instance, err := a.transport.DataChannelItemToAccumulatedData(a.configuration, item)
 	if err != nil {
@@ -143,12 +135,14 @@ func (a *Accumulator) Store(item interface{}) (string, error) {
 	data.lastUpdate = time.Now()
 	data.logger = a.loggers
 	data.pointMap = &a.pointMap
-	data.ttl = &a.accumulatorConf.DataTTL
+	data.ttl = ttl
 	data.ttlManager = a.ttlManager
 
-	err = a.ttlManager.AddTask(scheduler.NewTask(hash, a.accumulatorConf.DataTTL, data), true)
-	if err != nil {
-		return empty, err
+	if ttl > 0 {
+		err = a.ttlManager.AddTask(scheduler.NewTask(hash, ttl, data), true)
+		if err != nil {
+			return empty, err
+		}
 	}
 
 	return hash, nil

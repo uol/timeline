@@ -19,7 +19,7 @@ import (
 **/
 
 // createTimelineManagerA - creates a new timeline manager
-func createTimelineManagerA(port int, ttl time.Duration) *timeline.Manager {
+func createTimelineManagerA(port int) *timeline.Manager {
 
 	backend := timeline.Backend{
 		Host: telnetHost,
@@ -28,13 +28,10 @@ func createTimelineManagerA(port int, ttl time.Duration) *timeline.Manager {
 
 	transport := createOpenTSDBTransport()
 
-	conf := &timeline.AccumulatorConf{
-		DataTransformerConf: timeline.DataTransformerConf{
-			CycleDuration:    time.Millisecond * 900,
-			HashingAlgorithm: hashing.SHAKE256,
-			HashSize:         12,
-		},
-		DataTTL: ttl,
+	conf := &timeline.DataTransformerConf{
+		CycleDuration:    time.Millisecond * 900,
+		HashingAlgorithm: hashing.SHAKE256,
+		HashSize:         12,
 	}
 
 	accumulator := timeline.NewAccumulator(conf)
@@ -53,9 +50,9 @@ func createTimelineManagerA(port int, ttl time.Duration) *timeline.Manager {
 }
 
 // storeNumber - stores a new number
-func storeNumber(t *testing.T, m *timeline.Manager, item *serializer.ArrayItem) (hash string, ok bool) {
+func storeNumber(t *testing.T, ttl time.Duration, m *timeline.Manager, item *serializer.ArrayItem) (hash string, ok bool) {
 
-	hash, err := m.StoreDataToAccumulateOpenTSDB(item.Value, item.Timestamp, item.Metric, item.Tags...)
+	hash, err := m.StoreDataToAccumulateOpenTSDB(ttl, item.Value, item.Timestamp, item.Metric, item.Tags...)
 	if !assert.NoError(t, err, "error storing data") {
 		return "", false
 	}
@@ -71,12 +68,12 @@ func TestStorage(t *testing.T) {
 	c := make(chan string, 100)
 	go listenTelnet(t, c, port)
 
-	m := createTimelineManagerA(port, time.Minute)
+	m := createTimelineManagerA(port)
 	defer m.Shutdown()
 
 	n := newArrayItem("storage", 0)
 
-	if hash, ok := storeNumber(t, m, &n); !ok {
+	if hash, ok := storeNumber(t, time.Second, m, &n); !ok {
 		return
 	} else {
 		assert.Truef(t, len(hash) > 0, "the generated hash length must be large than zero: %s", hash)
@@ -113,7 +110,7 @@ func testAdd(t *testing.T, params ...accumParam) {
 	c := make(chan string, 100)
 	go listenTelnet(t, c, port)
 
-	m := createTimelineManagerA(port, time.Minute)
+	m := createTimelineManagerA(port)
 	defer m.Shutdown()
 
 	expected := []serializer.ArrayItem{}
@@ -122,7 +119,7 @@ func testAdd(t *testing.T, params ...accumParam) {
 
 		var hash string
 		var ok bool
-		if hash, ok = storeNumber(t, m, &params[i].point); !ok {
+		if hash, ok = storeNumber(t, time.Second, m, &params[i].point); !ok {
 			return
 		}
 
@@ -192,7 +189,7 @@ func TestDataTTL(t *testing.T) {
 	c := make(chan string, 100)
 	go listenTelnet(t, c, port)
 
-	m := createTimelineManagerA(port, time.Second)
+	m := createTimelineManagerA(port)
 	defer m.Shutdown()
 
 	n1 := newArrayItem("metric1", 0)
@@ -201,11 +198,11 @@ func TestDataTTL(t *testing.T) {
 	var hash1, hash2 string
 	var ok bool
 
-	if hash1, ok = storeNumber(t, m, &n1); !ok {
+	if hash1, ok = storeNumber(t, time.Second, m, &n1); !ok {
 		return
 	}
 
-	if hash2, ok = storeNumber(t, m, &n2); !ok {
+	if hash2, ok = storeNumber(t, time.Second, m, &n2); !ok {
 		return
 	}
 
@@ -231,6 +228,49 @@ func TestDataTTL(t *testing.T) {
 
 	err = m.IncrementAccumulatedData(hash2)
 	if !assert.NoError(t, err, "error was not expected incrementing hash2") {
+		return
+	}
+}
+
+// TestDataNoTTL - tests the data without TTL
+func TestDataNoTTL(t *testing.T) {
+
+	port := generatePort()
+
+	c := make(chan string, 100)
+	go listenTelnet(t, c, port)
+
+	m := createTimelineManagerA(port)
+	defer m.Shutdown()
+
+	n1 := newArrayItem("metric1", 0)
+	n2 := newArrayItem("metric2", 0)
+
+	var hash1, hash2 string
+	var ok bool
+
+	if hash1, ok = storeNumber(t, 0, m, &n1); !ok {
+		return
+	}
+
+	if hash2, ok = storeNumber(t, time.Second, m, &n2); !ok {
+		return
+	}
+
+	err := m.IncrementAccumulatedData(hash1)
+	if !assert.NoError(t, err, "error was not expected incrementing hash1") {
+		return
+	}
+
+	<-time.After(2 * time.Second)
+
+	err = m.IncrementAccumulatedData(hash2)
+	if !assert.Equal(t, timeline.ErrNotStored, err, "expected hash2 to be expired") {
+		return
+	}
+
+	err = m.IncrementAccumulatedData(hash1)
+	if !assert.NoError(t, err, "error was not expected incrementing hash1") {
 		return
 	}
 }

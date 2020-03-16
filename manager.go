@@ -162,23 +162,23 @@ func (m *Manager) FlattenOpenTSDB(operation FlatOperation, value float64, timest
 }
 
 // StoreDataToAccumulateHTTP - stores a data to accumulate
-func (m *Manager) StoreDataToAccumulateHTTP(name string, parameters ...interface{}) (string, error) {
+func (m *Manager) StoreDataToAccumulateHTTP(ttl time.Duration, name string, parameters ...interface{}) (string, error) {
 
 	return m.accumulator.Store(&jsonSerializer.ArrayItem{
 		Name:       name,
 		Parameters: parameters,
-	})
+	}, ttl)
 }
 
 // StoreDataToAccumulateOpenTSDB - stores a data to accumulate
-func (m *Manager) StoreDataToAccumulateOpenTSDB(value float64, timestamp int64, metric string, tags ...interface{}) (string, error) {
+func (m *Manager) StoreDataToAccumulateOpenTSDB(ttl time.Duration, value float64, timestamp int64, metric string, tags ...interface{}) (string, error) {
 
 	return m.accumulator.Store(&openTSDBSerializer.ArrayItem{
 		Metric:    metric,
 		Tags:      tags,
 		Timestamp: timestamp,
 		Value:     value,
-	})
+	}, ttl)
 }
 
 // IncrementAccumulatedData - stores a data to accumulate

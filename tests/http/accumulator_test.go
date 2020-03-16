@@ -28,13 +28,10 @@ func createTimelineManagerA() *timeline.Manager {
 
 	transport := createHTTPTransport()
 
-	conf := &timeline.AccumulatorConf{
-		DataTransformerConf: timeline.DataTransformerConf{
-			CycleDuration:    time.Millisecond * 900,
-			HashingAlgorithm: hashing.SHAKE128,
-			HashSize:         12,
-		},
-		DataTTL: time.Second * 1,
+	conf := &timeline.DataTransformerConf{
+		CycleDuration:    time.Millisecond * 900,
+		HashingAlgorithm: hashing.SHAKE128,
+		HashSize:         12,
 	}
 
 	accumulator := timeline.NewAccumulator(conf)
@@ -53,9 +50,9 @@ func createTimelineManagerA() *timeline.Manager {
 }
 
 // storeNumber - stores a new number
-func storeNumber(t *testing.T, m *timeline.Manager, n *timeline.NumberPoint) (hash string, ok bool) {
+func storeNumber(t *testing.T, ttl time.Duration, m *timeline.Manager, n *timeline.NumberPoint) (hash string, ok bool) {
 
-	hash, err := m.StoreDataToAccumulateHTTP(numberPoint, toGenericParameters(n)...)
+	hash, err := m.StoreDataToAccumulateHTTP(ttl, numberPoint, toGenericParameters(n)...)
 	if !assert.NoError(t, err, "error storing data") {
 		return "", false
 	}
@@ -71,7 +68,7 @@ func TestStorage(t *testing.T) {
 
 	n := newNumberPoint(0)
 
-	if hash, ok := storeNumber(t, m, n); !ok {
+	if hash, ok := storeNumber(t, time.Second, m, n); !ok {
 		return
 	} else {
 		assert.Truef(t, len(hash) > 0, "the generated hash length must be large than zero: %s", hash)
@@ -115,7 +112,7 @@ func testAdd(t *testing.T, params ...accumParam) {
 
 		var hash string
 		var ok bool
-		if hash, ok = storeNumber(t, m, params[i].point); !ok {
+		if hash, ok = storeNumber(t, time.Second, m, params[i].point); !ok {
 			return
 		}
 
@@ -197,11 +194,11 @@ func TestDataTTL(t *testing.T) {
 	var hash1, hash2 string
 	var ok bool
 
-	if hash1, ok = storeNumber(t, m, n1); !ok {
+	if hash1, ok = storeNumber(t, time.Second, m, n1); !ok {
 		return
 	}
 
-	if hash2, ok = storeNumber(t, m, n2); !ok {
+	if hash2, ok = storeNumber(t, time.Second, m, n2); !ok {
 		return
 	}
 
@@ -231,4 +228,46 @@ func TestDataTTL(t *testing.T) {
 	}
 
 	<-time.After(3 * time.Second)
+}
+
+// TestDataNoTTL - tests the data without TTL
+func TestDataNoTTL(t *testing.T) {
+
+	s := createTimeseriesBackend()
+	defer s.Close()
+
+	m := createTimelineManagerA()
+	defer m.Shutdown()
+
+	n1 := newNumberPoint(0)
+	n2 := newNumberPoint(0)
+	n2.Metric = "updated"
+
+	var hash1, hash2 string
+	var ok bool
+
+	if hash1, ok = storeNumber(t, 0, m, n1); !ok {
+		return
+	}
+
+	if hash2, ok = storeNumber(t, time.Second, m, n2); !ok {
+		return
+	}
+
+	err := m.IncrementAccumulatedData(hash1)
+	if !assert.NoError(t, err, "error was not expected incrementing hash1") {
+		return
+	}
+
+	<-time.After(2 * time.Second)
+
+	err = m.IncrementAccumulatedData(hash2)
+	if !assert.Equal(t, timeline.ErrNotStored, err, "expected hash2 to be expired") {
+		return
+	}
+
+	err = m.IncrementAccumulatedData(hash1)
+	if !assert.NoError(t, err, "error was not expected incrementing hash1") {
+		return
+	}
 }

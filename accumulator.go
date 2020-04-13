@@ -123,12 +123,39 @@ func (a *Accumulator) Add(hash string) error {
 // Store - stores a reference
 func (a *Accumulator) Store(item interface{}, ttl time.Duration) (string, error) {
 
-	instance, err := a.transport.DataChannelItemToAccumulatedData(a.configuration, item)
+	instance, err := a.transport.DataChannelItemToAccumulatedData(a.configuration, item, true)
 	if err != nil {
 		return empty, err
 	}
 
 	hash := instance.GetHash()
+
+	err = a.store(hash, instance, ttl)
+	if err != nil {
+		return empty, err
+	}
+
+	return hash, nil
+}
+
+// StoreCustomHash - stores a custom reference
+func (a *Accumulator) StoreCustomHash(item interface{}, ttl time.Duration, hash string) error {
+
+	instance, err := a.transport.DataChannelItemToAccumulatedData(a.configuration, item, false)
+	if err != nil {
+		return err
+	}
+
+	err = a.store(hash, instance, ttl)
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// store - shared store function
+func (a *Accumulator) store(hash string, instance Hashable, ttl time.Duration) error {
 
 	a.pointMap.Store(hash, instance)
 	data := instance.(*AccumulatedData)
@@ -137,15 +164,16 @@ func (a *Accumulator) Store(item interface{}, ttl time.Duration) (string, error)
 	data.pointMap = &a.pointMap
 	data.ttl = ttl
 	data.ttlManager = a.ttlManager
+	data.hash = hash
 
 	if ttl > 0 {
-		err = a.ttlManager.AddTask(scheduler.NewTask(hash, ttl, data), true)
+		err := a.ttlManager.AddTask(scheduler.NewTask(hash, ttl, data), true)
 		if err != nil {
-			return empty, err
+			return err
 		}
 	}
 
-	return hash, nil
+	return nil
 }
 
 // GetName - returns the processor's name

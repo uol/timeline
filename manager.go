@@ -170,6 +170,15 @@ func (m *Manager) StoreDataToAccumulateHTTP(ttl time.Duration, name string, para
 	}, ttl)
 }
 
+// StoreHashedDataToAccumulateHTTP - stores a data with custom hash to accumulate
+func (m *Manager) StoreHashedDataToAccumulateHTTP(hash string, ttl time.Duration, name string, parameters ...interface{}) error {
+
+	return m.accumulator.StoreCustomHash(&jsonSerializer.ArrayItem{
+		Name:       name,
+		Parameters: parameters,
+	}, ttl, hash)
+}
+
 // StoreDataToAccumulateOpenTSDB - stores a data to accumulate
 func (m *Manager) StoreDataToAccumulateOpenTSDB(ttl time.Duration, value float64, timestamp int64, metric string, tags ...interface{}) (string, error) {
 
@@ -179,6 +188,17 @@ func (m *Manager) StoreDataToAccumulateOpenTSDB(ttl time.Duration, value float64
 		Timestamp: timestamp,
 		Value:     value,
 	}, ttl)
+}
+
+// StoreHashedDataToAccumulateOpenTSDB - stores a data with custom hash to accumulate
+func (m *Manager) StoreHashedDataToAccumulateOpenTSDB(hash string, ttl time.Duration, value float64, timestamp int64, metric string, tags ...interface{}) error {
+
+	return m.accumulator.StoreCustomHash(&openTSDBSerializer.ArrayItem{
+		Metric:    metric,
+		Tags:      tags,
+		Timestamp: timestamp,
+		Value:     value,
+	}, ttl, hash)
 }
 
 // IncrementAccumulatedData - stores a data to accumulate

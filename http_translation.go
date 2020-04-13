@@ -128,16 +128,20 @@ func (t *HTTPTransport) FlattenerPointToDataChannelItem(point *FlattenerPoint) (
 }
 
 // DataChannelItemToAccumulatedData - converts the data channel item to the accumulated data
-func (t *HTTPTransport) DataChannelItemToAccumulatedData(configuration *DataTransformerConf, instance interface{}) (Hashable, error) {
+func (t *HTTPTransport) DataChannelItemToAccumulatedData(configuration *DataTransformerConf, instance interface{}, calculateHash bool) (Hashable, error) {
 
 	casted, _, _, hashParameters, err := t.extractData(instance, nil, true)
 	if err != nil {
 		return nil, err
 	}
 
-	hash, err := getHash(configuration, hashParameters...)
-	if err != nil {
-		return nil, err
+	var hash string
+
+	if calculateHash {
+		hash, err = getHash(configuration, hashParameters...)
+		if err != nil {
+			return nil, err
+		}
 	}
 
 	return &AccumulatedData{

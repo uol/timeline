@@ -50,7 +50,7 @@ type Transport interface {
 	FlattenerPointToDataChannelItem(item *FlattenerPoint) (interface{}, error)
 
 	// DataChannelItemToAccumulatedData - converts the data channel item to the accumulated data
-	DataChannelItemToAccumulatedData(configuration *DataTransformerConf, item interface{}) (Hashable, error)
+	DataChannelItemToAccumulatedData(configuration *DataTransformerConf, item interface{}, calculateHash bool) (Hashable, error)
 
 	// AccumulatedDataToDataChannelItem - converts the accumulated data to the data channel item
 	AccumulatedDataToDataChannelItem(item *AccumulatedData) (interface{}, error)

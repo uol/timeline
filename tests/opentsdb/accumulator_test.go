@@ -49,35 +49,27 @@ func createTimelineManagerA(port int) *timeline.Manager {
 	return manager
 }
 
-// storeNumber - stores a new number
-func storeNumber(t *testing.T, ttl time.Duration, m *timeline.Manager, item *serializer.ArrayItem) (hash string, ok bool) {
+func genCustomHash() string {
+	return "opentsdb-custom-hash-" + strconv.FormatInt(rand.Int63(), 10)
+}
 
-	hash, err := m.StoreDataToAccumulateOpenTSDB(ttl, item.Value, item.Timestamp, item.Metric, item.Tags...)
+// storeNumber - stores a new number
+func storeNumber(t *testing.T, ttl time.Duration, m *timeline.Manager, item *serializer.ArrayItem, customHash bool) (hash string, ok bool) {
+
+	var err error
+
+	if customHash {
+		hash = genCustomHash()
+		err = m.StoreHashedDataToAccumulateOpenTSDB(hash, ttl, item.Value, item.Timestamp, item.Metric, item.Tags...)
+	} else {
+		hash, err = m.StoreDataToAccumulateOpenTSDB(ttl, item.Value, item.Timestamp, item.Metric, item.Tags...)
+	}
+
 	if !assert.NoError(t, err, "error storing data") {
 		return "", false
 	}
 
 	return hash, true
-}
-
-// TestStorage - tests the hash storage operation
-func TestStorage(t *testing.T) {
-
-	port := generatePort()
-
-	c := make(chan string, 100)
-	go listenTelnet(t, c, port)
-
-	m := createTimelineManagerA(port)
-	defer m.Shutdown()
-
-	n := newArrayItem("storage", 0)
-
-	if hash, ok := storeNumber(t, time.Second, m, &n); !ok {
-		return
-	} else {
-		assert.Truef(t, len(hash) > 0, "the generated hash length must be large than zero: %s", hash)
-	}
 }
 
 // incAccumulatedData - increments the accumulated data N times
@@ -98,8 +90,9 @@ func incAccumulatedData(t *testing.T, m *timeline.Manager, hash string, times in
 }
 
 type accumParam struct {
-	point  serializer.ArrayItem
-	number uint64
+	point      serializer.ArrayItem
+	number     uint64
+	customHash bool
 }
 
 // testAdd - tests the add operation
@@ -119,7 +112,7 @@ func testAdd(t *testing.T, params ...accumParam) {
 
 		var hash string
 		var ok bool
-		if hash, ok = storeNumber(t, time.Second, m, &params[i].point); !ok {
+		if hash, ok = storeNumber(t, time.Second, m, &params[i].point, params[i].customHash); !ok {
 			return
 		}
 
@@ -142,20 +135,38 @@ func TestAccumulateOneTypeOneTime(t *testing.T) {
 	})
 }
 
+// TestAccumulateOneTypeOneTimeCustomHash - tests the add operation with custom hash
+func TestAccumulateOneTypeOneTimeCustomHash(t *testing.T) {
+
+	testAdd(t, accumParam{
+		point:      newArrayItem("one-type-one-time", 0),
+		number:     2,
+		customHash: true,
+	})
+}
+
 // TestAccumulateOneTypeMultipleTimes - tests the add operation
 func TestAccumulateOneTypeMultipleTimes(t *testing.T) {
 
-	rand.Seed(time.Now().Unix())
 	testAdd(t, accumParam{
 		point:  newArrayItem("one-type-mult-time", 0),
 		number: 1 + uint64(rand.Int63n(50)),
 	})
 }
 
-// buildAccumParameters - builds the accumulated parameters
-func buildAccumParameters(initial, max int, times uint64) []accumParam {
+// TestAccumulateOneTypeMultipleTimesCustomHash - tests the add operation with custom hash
+func TestAccumulateOneTypeMultipleTimesCustomHash(t *testing.T) {
 
-	rand.Seed(time.Now().Unix())
+	testAdd(t, accumParam{
+		point:      newArrayItem("one-type-mult-time-hash", 0),
+		number:     1 + uint64(rand.Int63n(50)),
+		customHash: true,
+	})
+}
+
+// buildAccumParameters - builds the accumulated parameters
+func buildAccumParameters(initial, max int, times uint64, customHash bool) []accumParam {
+
 	numParams := initial + rand.Intn(max)
 	parameters := make([]accumParam, numParams)
 	for i := 0; i < numParams; i++ {
@@ -163,6 +174,10 @@ func buildAccumParameters(initial, max int, times uint64) []accumParam {
 		parameters[i] = accumParam{
 			point:  n,
 			number: times,
+		}
+
+		if customHash {
+			parameters[i].customHash = customHash
 		}
 	}
 
@@ -172,17 +187,28 @@ func buildAccumParameters(initial, max int, times uint64) []accumParam {
 // TestAccumulateMultipleTypesOneTime - tests the add operation
 func TestAccumulateMultipleTypesOneTime(t *testing.T) {
 
-	testAdd(t, buildAccumParameters(1, 5, 1)...)
+	testAdd(t, buildAccumParameters(1, 5, 1, false)...)
+}
+
+// TestAccumulateMultipleTypesOneTimeCustomHash - tests the add operation with custom hash
+func TestAccumulateMultipleTypesOneTimeCustomHash(t *testing.T) {
+
+	testAdd(t, buildAccumParameters(1, 5, 1, true)...)
 }
 
 // TestAccumulateMultipleTypesMultipleTimes - tests the add operation
 func TestAccumulateMultipleTypesMultipleTimes(t *testing.T) {
 
-	testAdd(t, buildAccumParameters(1, 5, 1+uint64(rand.Int63n(50)))...)
+	testAdd(t, buildAccumParameters(1, 5, 1+uint64(rand.Int63n(50)), false)...)
 }
 
-// TestDataTTL - tests the data TTL
-func TestDataTTL(t *testing.T) {
+// TestAccumulateMultipleTypesMultipleTimesCustomHash - tests the add operation with custom hash
+func TestAccumulateMultipleTypesMultipleTimesCustomHash(t *testing.T) {
+
+	testAdd(t, buildAccumParameters(1, 5, 1+uint64(rand.Int63n(50)), true)...)
+}
+
+func testDataTTL(t *testing.T, customHash bool) {
 
 	port := generatePort()
 
@@ -192,17 +218,22 @@ func TestDataTTL(t *testing.T) {
 	m := createTimelineManagerA(port)
 	defer m.Shutdown()
 
-	n1 := newArrayItem("metric1", 0)
-	n2 := newArrayItem("metric2", 0)
+	metricPrefix := "metric"
+	if customHash {
+		metricPrefix += "-hashed"
+	}
+
+	n1 := newArrayItem(metricPrefix+"1", 0)
+	n2 := newArrayItem(metricPrefix+"2", 0)
 
 	var hash1, hash2 string
 	var ok bool
 
-	if hash1, ok = storeNumber(t, time.Second, m, &n1); !ok {
+	if hash1, ok = storeNumber(t, time.Second, m, &n1, customHash); !ok {
 		return
 	}
 
-	if hash2, ok = storeNumber(t, time.Second, m, &n2); !ok {
+	if hash2, ok = storeNumber(t, time.Second, m, &n2, customHash); !ok {
 		return
 	}
 
@@ -232,8 +263,19 @@ func TestDataTTL(t *testing.T) {
 	}
 }
 
-// TestDataNoTTL - tests the data without TTL
-func TestDataNoTTL(t *testing.T) {
+// TestDataTTL - test storing data using ttl to expire it
+func TestDataTTL(t *testing.T) {
+
+	testDataTTL(t, false)
+}
+
+// TestDataTTLCustomHash - test storing data using ttl to expire it (with custom hash)
+func TestDataTTLCustomHash(t *testing.T) {
+
+	testDataTTL(t, true)
+}
+
+func testDataNoTTL(t *testing.T, customHash bool) {
 
 	port := generatePort()
 
@@ -243,17 +285,22 @@ func TestDataNoTTL(t *testing.T) {
 	m := createTimelineManagerA(port)
 	defer m.Shutdown()
 
-	n1 := newArrayItem("metric1", 0)
-	n2 := newArrayItem("metric2", 0)
+	metricPrefix := "metric"
+	if customHash {
+		metricPrefix += "-hashed-no-ttl"
+	}
+
+	n1 := newArrayItem(metricPrefix+"1", 0)
+	n2 := newArrayItem(metricPrefix+"2", 0)
 
 	var hash1, hash2 string
 	var ok bool
 
-	if hash1, ok = storeNumber(t, 0, m, &n1); !ok {
+	if hash1, ok = storeNumber(t, 0, m, &n1, customHash); !ok {
 		return
 	}
 
-	if hash2, ok = storeNumber(t, time.Second, m, &n2); !ok {
+	if hash2, ok = storeNumber(t, time.Second, m, &n2, customHash); !ok {
 		return
 	}
 
@@ -273,4 +320,47 @@ func TestDataNoTTL(t *testing.T) {
 	if !assert.NoError(t, err, "error was not expected incrementing hash1") {
 		return
 	}
+}
+
+// TestDataNoTTL - test storing data with no expiration ttl
+func TestDataNoTTL(t *testing.T) {
+
+	testDataNoTTL(t, false)
+}
+
+// TestDataNoTTLCustomHash - test storing data with no expiration ttl (with custom hash)
+func TestDataNoTTLCustomHash(t *testing.T) {
+
+	testDataNoTTL(t, true)
+}
+
+func testStorage(t *testing.T, customHash bool) {
+
+	port := generatePort()
+
+	c := make(chan string, 100)
+	go listenTelnet(t, c, port)
+
+	m := createTimelineManagerA(port)
+	defer m.Shutdown()
+
+	n := newArrayItem("storage", 0)
+
+	if hash, ok := storeNumber(t, time.Second, m, &n, customHash); !ok {
+		return
+	} else {
+		assert.Truef(t, len(hash) > 0, "the generated hash length must be large than zero: %s", hash)
+	}
+}
+
+// TestStorage - tests the hash storage operation
+func TestStorage(t *testing.T) {
+
+	testStorage(t, false)
+}
+
+// TestStorageCustomHash - tests the hash storage operation with custom hash
+func TestStorageCustomHash(t *testing.T) {
+
+	testStorage(t, true)
 }

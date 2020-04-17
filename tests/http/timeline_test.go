@@ -39,6 +39,7 @@ func createTimelineManager(start bool) *timeline.Manager {
 		if err != nil {
 			panic(err)
 		}
+
 	}
 
 	return manager

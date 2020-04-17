@@ -22,6 +22,7 @@ type OpenTSDBTransport struct {
 	serializer    *serializer.Serializer
 	address       *net.TCPAddr
 	connection    net.Conn
+	started       bool
 }
 
 // OpenTSDBTransportConfig - has all openTSDB event manager configurations
@@ -86,8 +87,6 @@ func (t *OpenTSDBTransport) ConfigureBackend(backend *Backend) error {
 	if err != nil {
 		return err
 	}
-
-	t.retryConnect()
 
 	return nil
 }
@@ -272,6 +271,8 @@ func (t *OpenTSDBTransport) connect() bool {
 
 // Start - starts this transport
 func (t *OpenTSDBTransport) Start() error {
+
+	t.retryConnect()
 
 	return t.core.Start()
 }

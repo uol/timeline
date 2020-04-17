@@ -53,6 +53,44 @@ func genCustomHash() string {
 	return "opentsdb-custom-hash-" + strconv.FormatInt(rand.Int63(), 10)
 }
 
+func testStorage(t *testing.T, customHash bool) {
+
+	port := generatePort()
+
+	c := make(chan string, 100)
+	go listenTelnet(t, c, port)
+
+	m := createTimelineManagerA(port)
+	defer m.Shutdown()
+
+	n := newArrayItem("storage", 0)
+
+	hash, ok := storeNumber(t, time.Second, m, &n, customHash)
+	if !assert.True(t, ok, "expected stored flag to be true") {
+		return
+	}
+
+	assert.Truef(t, len(hash) > 0, "the generated hash length must be large than zero: %s", hash)
+
+	incAccumulatedData(t, m, hash, 1)
+
+	n.Value = 1
+
+	testItemsAgainstReceivedLines(t, c, []serializer.ArrayItem{n})
+}
+
+// TestStorage - tests the hash storage operation
+func TestStorage(t *testing.T) {
+
+	testStorage(t, false)
+}
+
+// TestStorageCustomHash - tests the hash storage operation with custom hash
+func TestStorageCustomHash(t *testing.T) {
+
+	testStorage(t, true)
+}
+
 // storeNumber - stores a new number
 func storeNumber(t *testing.T, ttl time.Duration, m *timeline.Manager, item *serializer.ArrayItem, customHash bool) (hash string, ok bool) {
 
@@ -110,9 +148,8 @@ func testAdd(t *testing.T, params ...accumParam) {
 
 	for i := 0; i < len(params); i++ {
 
-		var hash string
-		var ok bool
-		if hash, ok = storeNumber(t, time.Second, m, &params[i].point, params[i].customHash); !ok {
+		hash, ok := storeNumber(t, time.Second, m, &params[i].point, params[i].customHash)
+		if !assert.True(t, ok, "expected stored flag to be true") {
 			return
 		}
 
@@ -332,35 +369,4 @@ func TestDataNoTTL(t *testing.T) {
 func TestDataNoTTLCustomHash(t *testing.T) {
 
 	testDataNoTTL(t, true)
-}
-
-func testStorage(t *testing.T, customHash bool) {
-
-	port := generatePort()
-
-	c := make(chan string, 100)
-	go listenTelnet(t, c, port)
-
-	m := createTimelineManagerA(port)
-	defer m.Shutdown()
-
-	n := newArrayItem("storage", 0)
-
-	if hash, ok := storeNumber(t, time.Second, m, &n, customHash); !ok {
-		return
-	} else {
-		assert.Truef(t, len(hash) > 0, "the generated hash length must be large than zero: %s", hash)
-	}
-}
-
-// TestStorage - tests the hash storage operation
-func TestStorage(t *testing.T) {
-
-	testStorage(t, false)
-}
-
-// TestStorageCustomHash - tests the hash storage operation with custom hash
-func TestStorageCustomHash(t *testing.T) {
-
-	testStorage(t, true)
 }

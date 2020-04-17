@@ -69,6 +69,7 @@ type transportCore struct {
 	batchSendInterval time.Duration
 	pointChannel      chan interface{}
 	loggers           *logh.ContextualLogger
+	started           bool
 }
 
 // DefaultTransportConfiguration - the default fields used by the transport configuration
@@ -104,9 +105,15 @@ func (c *DefaultTransportConfiguration) Validate() error {
 // Start - starts the transport
 func (t *transportCore) Start() error {
 
+	if t.started {
+		return nil
+	}
+
 	if logh.InfoEnabled {
 		t.loggers.Info().Msg("starting transport...")
 	}
+
+	t.started = true
 
 	go t.transferDataLoop()
 
@@ -181,4 +188,6 @@ func (t *transportCore) Close() {
 	}
 
 	close(t.pointChannel)
+
+	t.started = false
 }

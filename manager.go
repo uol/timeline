@@ -210,15 +210,24 @@ func (m *Manager) IncrementAccumulatedData(hash string) error {
 // Start - starts the manager
 func (m *Manager) Start() error {
 
+	err := m.transport.Start()
+	if err != nil {
+		return err
+	}
+
 	if m.flattener != nil {
+
 		m.flattener.Start()
+
 	}
 
 	if m.accumulator != nil {
+
 		m.accumulator.Start()
+
 	}
 
-	return m.transport.Start()
+	return nil
 }
 
 // Shutdown - shuts down the transport

@@ -93,8 +93,6 @@ func handleConnection(t *testing.T, c chan string, conn net.Conn) {
 		panic(err)
 	}
 
-	fmt.Println("reading...")
-
 	n, err := conn.Read(buffer)
 	if err != nil {
 		panic(err)
@@ -104,8 +102,6 @@ func handleConnection(t *testing.T, c chan string, conn net.Conn) {
 		fmt.Println("reading zero")
 		return
 	}
-
-	fmt.Println("reading ok")
 
 	c <- (string)(bytes.Trim(buffer, "\x00"))
 }

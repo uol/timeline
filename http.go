@@ -105,10 +105,11 @@ func (t *HTTPTransport) DataChannel() chan<- interface{} {
 func (t *HTTPTransport) TransferData(dataList []interface{}) error {
 
 	numPoints := len(dataList)
-	points := make([]serializer.ArrayItem, numPoints)
+	points := make([]*serializer.ArrayItem, numPoints)
+
 	var ok bool
 	for i := 0; i < numPoints; i++ {
-		points[i], ok = dataList[i].(serializer.ArrayItem)
+		points[i], ok = dataList[i].(*serializer.ArrayItem)
 		if !ok {
 			return fmt.Errorf("error casting data to serializer.ArrayItem")
 		}

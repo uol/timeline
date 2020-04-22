@@ -156,14 +156,14 @@ outterFor:
 		numPoints = len(points)
 
 		if numPoints == 0 {
-			if logh.InfoEnabled {
-				t.loggers.Info().Msg("buffer is empty, no data will be send")
+			if logh.DebugEnabled {
+				t.loggers.Debug().Msg("buffer is empty, no data will be send")
 			}
 			continue
-		}
-
-		if logh.InfoEnabled {
-			t.loggers.Info().Msg(fmt.Sprintf("sending a batch of %d points...", numPoints))
+		} else {
+			if logh.InfoEnabled {
+				t.loggers.Info().Msg(fmt.Sprintf("sending a batch of %d points...", numPoints))
+			}
 		}
 
 		err := t.transport.TransferData(points)

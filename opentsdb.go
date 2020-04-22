@@ -23,6 +23,7 @@ type OpenTSDBTransport struct {
 	address       *net.TCPAddr
 	connection    net.Conn
 	started       bool
+	connected     bool
 }
 
 // OpenTSDBTransportConfig - has all openTSDB event manager configurations
@@ -111,18 +112,29 @@ func (t *OpenTSDBTransport) recover() {
 func (t *OpenTSDBTransport) TransferData(dataList []interface{}) error {
 
 	numPoints := len(dataList)
-	points := make([]serializer.ArrayItem, numPoints)
+	points := make([]*serializer.ArrayItem, numPoints)
+
 	var ok bool
 	for i := 0; i < numPoints; i++ {
-		points[i], ok = dataList[i].(serializer.ArrayItem)
+		points[i], ok = dataList[i].(*serializer.ArrayItem)
 		if !ok {
 			return fmt.Errorf("error casting data to serializer.ArrayItem")
+		}
+	}
+
+	if logh.DebugEnabled {
+		for i := 0; i < len(points); i++ {
+			logh.Debug().Msgf("point: %+v", points[i])
 		}
 	}
 
 	payload, err := t.serializer.SerializeArray(points...)
 	if err != nil {
 		return err
+	}
+
+	if logh.DebugEnabled {
+		logh.Debug().Msgf("sending a payload of %d bytes", len(payload))
 	}
 
 	defer t.recover()
@@ -142,12 +154,33 @@ func (t *OpenTSDBTransport) TransferData(dataList []interface{}) error {
 // writePayload - writes the payload
 func (t *OpenTSDBTransport) writePayload(payload string) bool {
 
-	readBuffer := make([]byte, 32)
+	if !t.connected {
+		if logh.InfoEnabled {
+			t.core.loggers.Info().Msg("connection is not ready...")
+		}
+		return false
+	}
 
-	err := t.connection.SetReadDeadline(time.Now().Add(t.configuration.MaxReadTimeout))
+	err := t.connection.SetWriteDeadline(time.Now().Add(t.configuration.RequestTimeout))
 	if err != nil {
 		if logh.ErrorEnabled {
-			t.core.loggers.Error().Msg(fmt.Sprintf("error setting read deadline: %s", err.Error()))
+			t.core.loggers.Error().Err(err).Msg("error setting write deadline")
+		}
+		return false
+	}
+
+	_, err = t.connection.Write([]byte(payload))
+	if err != nil {
+		t.logConnectionError(err, read)
+		return false
+	}
+
+	readBuffer := make([]byte, 32)
+
+	err = t.connection.SetReadDeadline(time.Now().Add(t.configuration.MaxReadTimeout))
+	if err != nil {
+		if logh.ErrorEnabled {
+			t.core.loggers.Error().Err(err).Msg("error setting read deadline")
 		}
 		return false
 	}
@@ -158,20 +191,6 @@ func (t *OpenTSDBTransport) writePayload(payload string) bool {
 			t.logConnectionError(err, read)
 			return false
 		}
-	}
-
-	err = t.connection.SetWriteDeadline(time.Now().Add(t.configuration.RequestTimeout))
-	if err != nil {
-		if logh.ErrorEnabled {
-			t.core.loggers.Error().Msg(fmt.Sprintf("error writing on connection: %s", err.Error()))
-		}
-		return false
-	}
-
-	_, err = t.connection.Write([]byte(payload))
-	if err != nil {
-		t.logConnectionError(err, read)
-		return false
 	}
 
 	return true
@@ -216,6 +235,7 @@ func (t *OpenTSDBTransport) closeConnection() {
 	}
 
 	t.connection = nil
+	t.connected = false
 }
 
 // MatchType - checks if this transport implementation matches the given type
@@ -227,10 +247,13 @@ func (t *OpenTSDBTransport) MatchType(tt transportType) bool {
 // retryConnect - connects the telnet client
 func (t *OpenTSDBTransport) retryConnect() {
 
-	connected := false
+	if logh.InfoEnabled {
+		t.core.loggers.Info().Msgf("starting a new connection to: %s:", t.address.String())
+	}
+
 	for {
-		connected = t.connect()
-		if connected {
+		t.connect()
+		if t.connected {
 			break
 		}
 
@@ -243,11 +266,13 @@ func (t *OpenTSDBTransport) retryConnect() {
 }
 
 // connect - connects the telnet client
-func (t *OpenTSDBTransport) connect() bool {
+func (t *OpenTSDBTransport) connect() {
 
 	if logh.InfoEnabled {
-		t.core.loggers.Info().Msg(fmt.Sprintf("connnecting to opentsdb telnet: %s:", t.address.String()))
+		t.core.loggers.Info().Msg(fmt.Sprintf("connecting to opentsdb telnet: %s:", t.address.String()))
 	}
+
+	t.connected = false
 
 	var err error
 	t.connection, err = net.DialTCP("tcp", nil, t.address)
@@ -255,7 +280,7 @@ func (t *OpenTSDBTransport) connect() bool {
 		if logh.ErrorEnabled {
 			t.core.loggers.Info().Msg(fmt.Sprintf("error connecting to address: %s", t.address.String()))
 		}
-		return false
+		return
 	}
 
 	err = t.connection.SetDeadline(time.Time{})
@@ -263,10 +288,10 @@ func (t *OpenTSDBTransport) connect() bool {
 		if logh.ErrorEnabled {
 			t.core.loggers.Error().Msg("error setting connection's deadline")
 		}
-		return false
+		return
 	}
 
-	return true
+	t.connected = true
 }
 
 // Start - starts this transport
@@ -281,6 +306,8 @@ func (t *OpenTSDBTransport) Start() error {
 func (t *OpenTSDBTransport) Close() {
 
 	t.core.Close()
+
+	t.connected = false
 }
 
 // Serialize - renders the text using the configured serializer

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/uol/gotest"
 	"github.com/uol/hashing"
+	serializer "github.com/uol/serializer/json"
 	"github.com/uol/timeline"
 )
 
@@ -31,7 +32,7 @@ func createTimelineManagerA() *timeline.Manager {
 	transport := createHTTPTransport()
 
 	conf := &timeline.DataTransformerConf{
-		CycleDuration:    time.Millisecond * 900,
+		CycleDuration:    time.Millisecond * 100,
 		HashingAlgorithm: hashing.SHAKE128,
 		HashSize:         12,
 	}
@@ -52,7 +53,7 @@ func createTimelineManagerA() *timeline.Manager {
 }
 
 // storeNumber - stores a new number
-func storeNumber(t *testing.T, ttl time.Duration, m *timeline.Manager, n *timeline.NumberPoint, customHash bool) (hash string, ok bool) {
+func storeNumber(t *testing.T, ttl time.Duration, m *timeline.Manager, n *serializer.NumberPoint, customHash bool) (hash string, ok bool) {
 
 	var err error
 
@@ -118,7 +119,7 @@ func incAccumulatedData(t *testing.T, m *timeline.Manager, hash string, times in
 }
 
 type accumParam struct {
-	point      *timeline.NumberPoint
+	point      *serializer.NumberPoint
 	number     uint64
 	customHash bool
 }
@@ -132,7 +133,7 @@ func testAdd(t *testing.T, params ...accumParam) {
 	m := createTimelineManagerA()
 	defer m.Shutdown()
 
-	expected := []*timeline.NumberPoint{}
+	expected := []*serializer.NumberPoint{}
 
 	for i := 0; i < len(params); i++ {
 

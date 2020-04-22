@@ -106,7 +106,7 @@ func (t *HTTPTransport) DataChannelItemToFlattenerPoint(configuration *DataTrans
 		flattenerPointData: flattenerPointData{
 			operation: operation,
 			timestamp: timestamp,
-			dataChannelItem: serializer.ArrayItem{
+			dataChannelItem: &serializer.ArrayItem{
 				Name:       item.Name,
 				Parameters: hashParameters[2:],
 			},
@@ -117,7 +117,7 @@ func (t *HTTPTransport) DataChannelItemToFlattenerPoint(configuration *DataTrans
 // FlattenerPointToDataChannelItem - converts the flattened point to the data channel one
 func (t *HTTPTransport) FlattenerPointToDataChannelItem(point *FlattenerPoint) (interface{}, error) {
 
-	item, ok := point.dataChannelItem.(serializer.ArrayItem)
+	item, ok := point.dataChannelItem.(*serializer.ArrayItem)
 	if !ok {
 		return nil, fmt.Errorf("error casting flattener point to data channel item")
 	}
@@ -147,14 +147,14 @@ func (t *HTTPTransport) DataChannelItemToAccumulatedData(configuration *DataTran
 	return &AccumulatedData{
 		count: 0,
 		hash:  hash,
-		data:  *casted,
+		data:  casted,
 	}, nil
 }
 
 // AccumulatedDataToDataChannelItem - converts the accumulated data to the data channel item
 func (t *HTTPTransport) AccumulatedDataToDataChannelItem(point *AccumulatedData) (interface{}, error) {
 
-	item, ok := point.data.(serializer.ArrayItem)
+	item, ok := point.data.(*serializer.ArrayItem)
 	if !ok {
 		return nil, fmt.Errorf("error casting accumulated data to data channel item")
 	}

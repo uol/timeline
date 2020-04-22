@@ -68,7 +68,7 @@ func (m *Manager) SendHTTP(schemaName string, parameters ...interface{}) error {
 		return fmt.Errorf("this transport does not accepts http messages")
 	}
 
-	m.transport.DataChannel() <- jsonSerializer.ArrayItem{
+	m.transport.DataChannel() <- &jsonSerializer.ArrayItem{
 		Name:       schemaName,
 		Parameters: parameters,
 	}
@@ -79,7 +79,7 @@ func (m *Manager) SendHTTP(schemaName string, parameters ...interface{}) error {
 // SerializeHTTP - serializes a point using the json serializer
 func (m *Manager) SerializeHTTP(schemaName string, parameters ...interface{}) (string, error) {
 
-	return m.transport.Serialize(jsonSerializer.ArrayItem{
+	return m.transport.Serialize(&jsonSerializer.ArrayItem{
 		Name:       schemaName,
 		Parameters: parameters,
 	})
@@ -115,7 +115,7 @@ func (m *Manager) SendOpenTSDB(value float64, timestamp int64, metric string, ta
 		timestamp = time.Now().Unix()
 	}
 
-	m.transport.DataChannel() <- openTSDBSerializer.ArrayItem{
+	m.transport.DataChannel() <- &openTSDBSerializer.ArrayItem{
 		Metric:    metric,
 		Tags:      tags,
 		Timestamp: timestamp,
@@ -128,7 +128,7 @@ func (m *Manager) SendOpenTSDB(value float64, timestamp int64, metric string, ta
 // SerializeOpenTSDB - serializes a point using the opentsdb serializer
 func (m *Manager) SerializeOpenTSDB(value float64, timestamp int64, metric string, tags ...interface{}) (string, error) {
 
-	return m.transport.Serialize(openTSDBSerializer.ArrayItem{
+	return m.transport.Serialize(&openTSDBSerializer.ArrayItem{
 		Metric:    metric,
 		Tags:      tags,
 		Timestamp: timestamp,
@@ -216,15 +216,11 @@ func (m *Manager) Start() error {
 	}
 
 	if m.flattener != nil {
-
 		m.flattener.Start()
-
 	}
 
 	if m.accumulator != nil {
-
 		m.accumulator.Start()
-
 	}
 
 	return nil

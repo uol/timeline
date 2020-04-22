@@ -157,7 +157,12 @@ func (a *Accumulator) StoreCustomHash(item interface{}, ttl time.Duration, hash 
 // store - shared store function
 func (a *Accumulator) store(hash string, instance Hashable, ttl time.Duration) error {
 
-	a.pointMap.Store(hash, instance)
+	if _, loaded := a.pointMap.LoadOrStore(hash, instance); loaded {
+		if logh.WarnEnabled {
+			a.loggers.Warn().Msgf("a key was replaced on storage operation: %s", hash)
+		}
+	}
+
 	data := instance.(*AccumulatedData)
 	data.lastUpdate = time.Now()
 	data.logger = a.loggers

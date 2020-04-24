@@ -48,6 +48,7 @@ func createOpenTSDBTransport() *timeline.OpenTSDBTransport {
 			SerializerBufferSize: 1024,
 			TransportBufferSize:  5,
 		},
+		ReadBufferSize:      64,
 		MaxReadTimeout:      3 * time.Second,
 		ReconnectionTimeout: 1 * time.Second,
 	}

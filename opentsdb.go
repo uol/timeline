@@ -29,6 +29,7 @@ type OpenTSDBTransport struct {
 // OpenTSDBTransportConfig - has all openTSDB event manager configurations
 type OpenTSDBTransportConfig struct {
 	DefaultTransportConfiguration
+	ReadBufferSize      int
 	MaxReadTimeout      time.Duration
 	ReconnectionTimeout time.Duration
 }
@@ -51,6 +52,10 @@ func NewOpenTSDBTransport(configuration *OpenTSDBTransportConfig) (*OpenTSDBTran
 		return nil, err
 	}
 
+	if configuration.ReadBufferSize <= 0 {
+		return nil, fmt.Errorf("invalid read buffer size: %d", configuration.ReadBufferSize)
+	}
+
 	if configuration.MaxReadTimeout.Seconds() <= 0 {
 		return nil, fmt.Errorf("invalid connection maximum read timeout: %s", configuration.MaxReadTimeout)
 	}
@@ -63,9 +68,10 @@ func NewOpenTSDBTransport(configuration *OpenTSDBTransportConfig) (*OpenTSDBTran
 
 	t := &OpenTSDBTransport{
 		core: transportCore{
-			batchSendInterval: configuration.BatchSendInterval,
-			pointChannel:      make(chan interface{}, configuration.TransportBufferSize),
-			loggers:           logh.CreateContextualLogger("pkg", "timeline/opentsdb"),
+			batchSendInterval:    configuration.BatchSendInterval,
+			pointChannel:         make(chan interface{}, configuration.TransportBufferSize),
+			loggers:              logh.CreateContextualLogger("pkg", "timeline/opentsdb"),
+			defaultConfiguration: &configuration.DefaultTransportConfiguration,
 		},
 		configuration: configuration,
 		serializer:    s,
@@ -99,11 +105,11 @@ func (t *OpenTSDBTransport) DataChannel() chan<- interface{} {
 }
 
 // recover - recovers from panic
-func (t *OpenTSDBTransport) recover() {
+func (t *OpenTSDBTransport) panicRecovery() {
 
 	if r := recover(); r != nil {
 		if logh.ErrorEnabled {
-			t.core.loggers.Error().Msg(fmt.Sprintf("recovered from: %s", r))
+			t.core.loggers.Error().Err(r.(error)).Msg("error recovery")
 		}
 	}
 }
@@ -122,22 +128,20 @@ func (t *OpenTSDBTransport) TransferData(dataList []interface{}) error {
 		}
 	}
 
-	if logh.DebugEnabled {
-		for i := 0; i < len(points); i++ {
-			logh.Debug().Msgf("point: %+v", points[i])
-		}
-	}
+	t.core.debugInput(dataList)
 
 	payload, err := t.serializer.SerializeArray(points...)
 	if err != nil {
 		return err
 	}
 
+	t.core.debugOutput(payload)
+
 	if logh.DebugEnabled {
 		logh.Debug().Msgf("sending a payload of %d bytes", len(payload))
 	}
 
-	defer t.recover()
+	defer t.panicRecovery()
 
 	for {
 		if !t.writePayload(payload) {
@@ -169,13 +173,17 @@ func (t *OpenTSDBTransport) writePayload(payload string) bool {
 		return false
 	}
 
-	_, err = t.connection.Write([]byte(payload))
+	n, err := t.connection.Write(([]byte)(payload))
 	if err != nil {
-		t.logConnectionError(err, read)
+		t.logConnectionError(err, write)
 		return false
 	}
 
-	readBuffer := make([]byte, 32)
+	if logh.DebugEnabled {
+		logh.Debug().Msgf("%d bytes were written to the connection", n)
+	}
+
+	readBuffer := make([]byte, t.configuration.ReadBufferSize)
 
 	err = t.connection.SetReadDeadline(time.Now().Add(t.configuration.MaxReadTimeout))
 	if err != nil {
@@ -203,7 +211,6 @@ func (t *OpenTSDBTransport) logConnectionError(err error, operation rwOp) {
 		if logh.ErrorEnabled {
 			t.core.loggers.Error().Msg(fmt.Sprintf("[%s] connection EOF received, retrying connection...", operation))
 		}
-
 		return
 	}
 
@@ -211,7 +218,6 @@ func (t *OpenTSDBTransport) logConnectionError(err error, operation rwOp) {
 		if logh.ErrorEnabled {
 			t.core.loggers.Error().Msg(fmt.Sprintf("[%s] connection timeout received, retrying connection...", operation))
 		}
-
 		return
 	}
 
@@ -223,10 +229,14 @@ func (t *OpenTSDBTransport) logConnectionError(err error, operation rwOp) {
 // closeConnection - closes the active connection
 func (t *OpenTSDBTransport) closeConnection() {
 
+	if t.connection == nil {
+		return
+	}
+
 	err := t.connection.Close()
 	if err != nil {
 		if logh.ErrorEnabled {
-			t.core.loggers.Error().Msg(err.Error())
+			t.core.loggers.Error().Err(err).Msg("error closing connection")
 		}
 	}
 
@@ -251,28 +261,33 @@ func (t *OpenTSDBTransport) retryConnect() {
 		t.core.loggers.Info().Msgf("starting a new connection to: %s:", t.address.String())
 	}
 
+	t.connected = false
+
 	for {
-		t.connect()
-		if t.connected {
+
+		if t.connect() {
+			t.connected = true
 			break
+		}
+
+		if logh.InfoEnabled {
+			t.core.loggers.Info().Msgf("connection retry to \"%s\" in: %s", t.address.String(), t.configuration.ReconnectionTimeout.String())
 		}
 
 		<-time.After(t.configuration.ReconnectionTimeout)
 	}
 
 	if logh.InfoEnabled {
-		t.core.loggers.Info().Msg("connected!")
+		t.core.loggers.Info().Msgf("connected to: %s", t.address.String())
 	}
 }
 
 // connect - connects the telnet client
-func (t *OpenTSDBTransport) connect() {
+func (t *OpenTSDBTransport) connect() bool {
 
 	if logh.InfoEnabled {
 		t.core.loggers.Info().Msg(fmt.Sprintf("connecting to opentsdb telnet: %s:", t.address.String()))
 	}
-
-	t.connected = false
 
 	var err error
 	t.connection, err = net.DialTCP("tcp", nil, t.address)
@@ -280,7 +295,7 @@ func (t *OpenTSDBTransport) connect() {
 		if logh.ErrorEnabled {
 			t.core.loggers.Info().Msg(fmt.Sprintf("error connecting to address: %s", t.address.String()))
 		}
-		return
+		return false
 	}
 
 	err = t.connection.SetDeadline(time.Time{})
@@ -288,16 +303,15 @@ func (t *OpenTSDBTransport) connect() {
 		if logh.ErrorEnabled {
 			t.core.loggers.Error().Msg("error setting connection's deadline")
 		}
-		return
+		t.closeConnection()
+		return false
 	}
 
-	t.connected = true
+	return true
 }
 
 // Start - starts this transport
 func (t *OpenTSDBTransport) Start() error {
-
-	t.retryConnect()
 
 	return t.core.Start()
 }

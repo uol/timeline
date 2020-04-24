@@ -15,8 +15,6 @@ import (
 * @author rnojiri
 **/
 
-var lineBreak []byte = []byte{'\r', '\n'}
-
 // OpenTSDBTransport - implements the openTSDB transport
 type OpenTSDBTransport struct {
 	core          transportCore

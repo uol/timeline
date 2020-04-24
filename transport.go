@@ -65,11 +65,12 @@ type Hashable interface {
 
 // transportCore - implements a default transport behaviour
 type transportCore struct {
-	transport         Transport
-	batchSendInterval time.Duration
-	pointChannel      chan interface{}
-	loggers           *logh.ContextualLogger
-	started           bool
+	transport            Transport
+	batchSendInterval    time.Duration
+	pointChannel         chan interface{}
+	loggers              *logh.ContextualLogger
+	started              bool
+	defaultConfiguration *DefaultTransportConfiguration
 }
 
 // DefaultTransportConfiguration - the default fields used by the transport configuration
@@ -78,6 +79,8 @@ type DefaultTransportConfiguration struct {
 	BatchSendInterval    time.Duration
 	RequestTimeout       time.Duration
 	SerializerBufferSize int
+	DebugInput           bool
+	DebugOutput          bool
 }
 
 // Validate - validates the default itens from the configuration
@@ -173,7 +176,7 @@ outterFor:
 			}
 		} else {
 			if logh.InfoEnabled {
-				t.loggers.Info().Msg(fmt.Sprintf("batch of %d points were sent!", numPoints))
+				t.loggers.Info().Msgf("batch of %d points were sent!", numPoints)
 			}
 		}
 
@@ -190,4 +193,25 @@ func (t *transportCore) Close() {
 	close(t.pointChannel)
 
 	t.started = false
+}
+
+// debugInput - print the incoming points if enabled
+func (t *transportCore) debugInput(array []interface{}) {
+
+	if t.defaultConfiguration.DebugInput && logh.DebugEnabled {
+
+		for _, item := range array {
+
+			t.loggers.Debug().Str("point", "input").Msgf("%+v", item)
+		}
+	}
+}
+
+// debugOutput - print the outcoming points if enabled
+func (t *transportCore) debugOutput(serialized string) {
+
+	if t.defaultConfiguration.DebugOutput && logh.DebugEnabled {
+
+		t.loggers.Debug().Str("point", "output").Msgf("--content-start--\n%s\n--content-end--\n", serialized)
+	}
 }

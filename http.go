@@ -59,9 +59,10 @@ func NewHTTPTransport(configuration *HTTPTransportConfig) (*HTTPTransport, error
 
 	t := &HTTPTransport{
 		core: transportCore{
-			batchSendInterval: configuration.BatchSendInterval,
-			pointChannel:      make(chan interface{}, configuration.TransportBufferSize),
-			loggers:           logh.CreateContextualLogger("pkg", "timeline/http"),
+			batchSendInterval:    configuration.BatchSendInterval,
+			pointChannel:         make(chan interface{}, configuration.TransportBufferSize),
+			loggers:              logh.CreateContextualLogger("pkg", "timeline/http"),
+			defaultConfiguration: &configuration.DefaultTransportConfiguration,
 		},
 		configuration: configuration,
 		httpClient:    funks.CreateHTTPClient(configuration.RequestTimeout, true),
@@ -115,10 +116,14 @@ func (t *HTTPTransport) TransferData(dataList []interface{}) error {
 		}
 	}
 
+	t.core.debugInput(dataList)
+
 	payload, err := t.serializer.SerializeArray(points...)
 	if err != nil {
 		return err
 	}
+
+	t.core.debugOutput(payload)
 
 	req, err := http.NewRequest(t.configuration.Method, t.serviceURL, bytes.NewBuffer([]byte(payload)))
 	if err != nil {

@@ -60,7 +60,6 @@ func NewHTTPTransport(configuration *HTTPTransportConfig) (*HTTPTransport, error
 	t := &HTTPTransport{
 		core: transportCore{
 			batchSendInterval:    configuration.BatchSendInterval,
-			pointChannel:         make(chan interface{}, configuration.TransportBufferSize),
 			loggers:              logh.CreateContextualLogger("pkg", "timeline/http"),
 			defaultConfiguration: &configuration.DefaultTransportConfiguration,
 		},

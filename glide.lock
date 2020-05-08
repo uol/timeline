@@ -1,5 +1,5 @@
-hash: 17d38d545dd1a21fa0e06eb9bee1ce1a10a402af386c08619bc5e4ffb9e51d6b
-updated: 2020-04-22T20:01:24.609850379-03:00
+hash: ea030a39e4fc8d37017326c90a6f04218fed3569b02f1c5852a8db89e8bbde2e
+updated: 2020-05-07T14:35:37.115387339-03:00
 imports:
 - name: github.com/rs/zerolog
   version: f1dd50b8c64d79be1392edf1d8fda5cedea4916d
@@ -8,8 +8,6 @@ imports:
   - internal/json
 - name: github.com/uol/funks
   version: f6a04c7785966773f32313e0c25c9343738369e9
-- name: github.com/uol/gotest
-  version: a7f82102d67468653dffe8fc637d4f885a0accde
 - name: github.com/uol/hashing
   version: 520f9fe195e130976599e3a495044b6b9aabfcd4
 - name: github.com/uol/logh
@@ -43,5 +41,7 @@ testImports:
   version: 221dbe5ed46703ee255b1da0dec05086f5035f62
   subpackages:
   - assert
+- name: github.com/uol/gotest
+  version: 722ab493fff3af02df304ce64b32e353a730197e
 - name: gopkg.in/yaml.v2
   version: 53403b58ad1b561927d19068c655246f2db79d48

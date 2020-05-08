@@ -19,11 +19,11 @@ import (
 func createTimelineManagerF(start bool) *timeline.Manager {
 
 	backend := timeline.Backend{
-		Host: gotest.TestServerHost,
-		Port: gotest.TestServerPort,
+		Host: testServerHost,
+		Port: testServerPort,
 	}
 
-	transport := createHTTPTransport()
+	transport := createHTTPTransport(defaultTransportSize, time.Second)
 
 	conf := &timeline.DataTransformerConf{
 		CycleDuration:    time.Millisecond * 900,
@@ -80,7 +80,7 @@ func testFlatOperation(t *testing.T, operation timeline.FlatOperation, expectedV
 
 	number.Value = expectedValue
 
-	requestData := gotest.WaitForHTTPServerRequest(s)
+	requestData := gotest.WaitForHTTPServerRequest(s, time.Second, 10*time.Second)
 	testRequestData(t, requestData, []*serializer.NumberPoint{number}, true, false)
 }
 

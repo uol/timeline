@@ -69,7 +69,6 @@ func NewOpenTSDBTransport(configuration *OpenTSDBTransportConfig) (*OpenTSDBTran
 	t := &OpenTSDBTransport{
 		core: transportCore{
 			batchSendInterval:    configuration.BatchSendInterval,
-			pointChannel:         make(chan interface{}, configuration.TransportBufferSize),
 			loggers:              logh.CreateContextualLogger("pkg", "timeline/opentsdb"),
 			defaultConfiguration: &configuration.DefaultTransportConfiguration,
 		},

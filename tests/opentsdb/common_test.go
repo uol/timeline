@@ -39,17 +39,17 @@ func generatePort() int {
 }
 
 // createOpenTSDBTransport - creates the http transport
-func createOpenTSDBTransport() *timeline.OpenTSDBTransport {
+func createOpenTSDBTransport(transportBufferSize int, batchSendInterval time.Duration) *timeline.OpenTSDBTransport {
 
 	transportConf := timeline.OpenTSDBTransportConfig{
 		DefaultTransportConfiguration: timeline.DefaultTransportConfiguration{
-			BatchSendInterval:    1 * time.Second,
-			RequestTimeout:       time.Second,
+			BatchSendInterval:    batchSendInterval,
+			RequestTimeout:       1 * time.Minute,
+			TransportBufferSize:  transportBufferSize,
 			SerializerBufferSize: 1024,
-			TransportBufferSize:  5,
 		},
 		ReadBufferSize:      64,
-		MaxReadTimeout:      3 * time.Second,
+		MaxReadTimeout:      1 * time.Millisecond,
 		ReconnectionTimeout: 1 * time.Second,
 	}
 
@@ -62,13 +62,13 @@ func createOpenTSDBTransport() *timeline.OpenTSDBTransport {
 }
 
 // listenTelnet - listens the telnet input
-func listenTelnet(t *testing.T, c chan string, port int) {
+func listenTelnet(t *testing.T, c chan string, port, numRequests int, readTimeout time.Duration) {
 
 	server, err := net.Listen("tcp", fmt.Sprintf("%s:%d", telnetHost, port))
 	if err != nil {
 		if strings.Contains(err.Error(), "address already in use") {
 			<-time.After(time.Second)
-			listenTelnet(t, c, generatePort())
+			listenTelnet(t, c, generatePort(), numRequests, readTimeout)
 		}
 	}
 
@@ -77,34 +77,60 @@ func listenTelnet(t *testing.T, c chan string, port int) {
 		panic(err)
 	}
 
-	handleConnection(t, c, conn)
+	handleConnection(t, c, conn, numRequests, readTimeout)
 
 	server.Close()
 }
 
 // handleConnection - handles the current connection
-func handleConnection(t *testing.T, c chan string, conn net.Conn) {
+func handleConnection(t *testing.T, c chan string, conn net.Conn, numRequests int, readTimeout time.Duration) {
 
 	defer conn.Close()
 
 	buffer := make([]byte, maxBuffer)
 
-	err := conn.SetDeadline(time.Now().Add(500 * time.Second))
+	err := conn.SetWriteDeadline(time.Time{})
 	if err != nil {
 		panic(err)
 	}
 
-	n, err := conn.Read(buffer)
+	err = conn.SetReadDeadline(time.Now().Add(readTimeout))
 	if err != nil {
 		panic(err)
 	}
 
-	if !assert.NotZero(t, n, "no characters found") {
-		fmt.Println("reading zero")
+	n := 0
+	numReqOK := 0
+	for i := 0; i < numRequests; i++ {
+		n, err = conn.Read(buffer)
+		if err != nil {
+			if nErr, ok := err.(net.Error); ok {
+				if nErr.Timeout() {
+					break
+				}
+			}
+
+			panic(err)
+		}
+
+		if !assert.Greater(t, n, 0, "no text received") {
+			return
+		}
+
+		trimmed := bytes.Trim(buffer, "\x00")
+
+		c <- (string)(trimmed)
+		numReqOK++
+
+		err = conn.SetReadDeadline(time.Now().Add(readTimeout))
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	if !assert.Equal(t, numRequests, numReqOK, "the number of requests differs") {
 		return
 	}
-
-	c <- (string)(bytes.Trim(buffer, "\x00"))
 }
 
 // newArrayItem - creates a new array item

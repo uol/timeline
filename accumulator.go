@@ -99,6 +99,7 @@ func (a *Accumulator) ProcessMapEntry(entry interface{}) bool {
 		}
 
 		a.transport.DataChannel() <- item
+
 		atomic.StoreUint64(&data.count, 0)
 		data.lastUpdate = time.Now()
 	}

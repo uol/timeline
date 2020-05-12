@@ -105,12 +105,27 @@ func (t *HTTPTransport) DataChannel() chan<- interface{} {
 func (t *HTTPTransport) TransferData(dataList []interface{}) error {
 
 	numPoints := len(dataList)
+	if numPoints == 0 && logh.WarnEnabled {
+		t.core.loggers.Warn().Msg("no points to transfer")
+		return nil
+	}
+
 	points := make([]*serializer.ArrayItem, numPoints)
 
 	var ok bool
 	for i := 0; i < numPoints; i++ {
+
+		if dataList[i] == nil && logh.WarnEnabled {
+			t.core.loggers.Warn().Msgf("null point at buffer index: %d", i)
+			continue
+		}
+
 		points[i], ok = dataList[i].(*serializer.ArrayItem)
 		if !ok {
+			if logh.WarnEnabled {
+				t.core.loggers.Warn().Msgf("could not cast object: %+v", dataList[i])
+			}
+
 			return fmt.Errorf("error casting data to serializer.ArrayItem")
 		}
 	}

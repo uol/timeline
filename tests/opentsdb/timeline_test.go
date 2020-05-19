@@ -132,7 +132,7 @@ func TestExceedingBufferSize(t *testing.T) {
 
 	// the time between requests must be minimal and the last request will be $batchSendDuration
 	for i := 0; i < numRequests-1; i++ {
-		if !assert.Equal(t, requestTimes[i]-firstPointTime, int64(0), "expected less than one milisecond") {
+		if !assert.LessOrEqual(t, requestTimes[i]-firstPointTime, int64(10), "expected less than 10 milisecond") {
 			return
 		}
 	}

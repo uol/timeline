@@ -2,10 +2,11 @@ package timeline
 
 import (
 	"fmt"
-	"sync/atomic"
 	"time"
 
+	"github.com/uol/funks"
 	"github.com/uol/logh"
+	"github.com/uol/timeline/buffer"
 )
 
 /**
@@ -24,7 +25,7 @@ const (
 type Transport interface {
 
 	// Send - send a new point
-	DataChannel() chan<- interface{}
+	DataChannel(item interface{})
 
 	// ConfigureBackend - configures the backend
 	ConfigureBackend(backend *Backend) error
@@ -68,19 +69,17 @@ type Hashable interface {
 type transportCore struct {
 	transport            Transport
 	batchSendInterval    time.Duration
-	pointChannel         chan interface{}
+	pointBuffer          *buffer.Buffer
 	loggers              *logh.ContextualLogger
 	started              bool
-	isReleasingBuffer    uint32
 	defaultConfiguration *DefaultTransportConfiguration
-	pointBuffer          []interface{}
 }
 
 // DefaultTransportConfiguration - the default fields used by the transport configuration
 type DefaultTransportConfiguration struct {
 	TransportBufferSize  int
-	BatchSendInterval    time.Duration
-	RequestTimeout       time.Duration
+	BatchSendInterval    funks.Duration
+	RequestTimeout       funks.Duration
 	SerializerBufferSize int
 	DebugInput           bool
 	DebugOutput          bool
@@ -119,49 +118,12 @@ func (t *transportCore) Start() error {
 		t.loggers.Info().Msg("starting transport...")
 	}
 
-	t.createPointChannelBuffer()
-
+	t.pointBuffer = buffer.New()
 	t.started = true
 
 	go t.transferDataLoop()
 
 	return nil
-}
-
-// createPointChannelBuffer - creates the point channel buffer and it's loop
-func (t *transportCore) createPointChannelBuffer() {
-
-	atomic.StoreUint32(&t.isReleasingBuffer, 0)
-	t.pointChannel = make(chan interface{})
-	t.pointBuffer = []interface{}{}
-
-	if logh.InfoEnabled {
-		t.loggers.Info().Msg("starting the point channel buffer loop...")
-	}
-
-	go func() {
-		for {
-			item, ok := <-t.pointChannel
-			if !ok {
-				if logh.InfoEnabled {
-					t.loggers.Info().Msg("breaking the point channel buffer loop...")
-				}
-
-				return
-			}
-
-			if len(t.pointBuffer) >= t.defaultConfiguration.TransportBufferSize {
-
-				if logh.WarnEnabled {
-					t.loggers.Warn().Msg("point buffer is full! (check the transport buffer size configuration)")
-				}
-
-				t.releaseBuffer()
-			}
-
-			t.pointBuffer = append(t.pointBuffer, item)
-		}
-	}()
 }
 
 // transferDataLoop - transfers the data to the backend throught this transport
@@ -181,22 +143,12 @@ func (t *transportCore) transferDataLoop() {
 // releaseBuffer - releases the point buffer
 func (t *transportCore) releaseBuffer() {
 
-	if atomic.LoadUint32(&t.isReleasingBuffer) == 1 {
-		if logh.DebugEnabled {
-			t.loggers.Debug().Msg("already releasing point buffer, skipping another call...")
-		}
-		return
-	}
-
-	atomic.StoreUint32(&t.isReleasingBuffer, 1)
-
-	numPoints := len(t.pointBuffer)
+	numPoints := t.pointBuffer.GetSize()
 
 	if numPoints == 0 {
 		if logh.DebugEnabled {
 			t.loggers.Debug().Msg("buffer is empty, no data will be send")
 		}
-		atomic.StoreUint32(&t.isReleasingBuffer, 0)
 		return
 	}
 
@@ -204,20 +156,38 @@ func (t *transportCore) releaseBuffer() {
 		t.loggers.Info().Msg(fmt.Sprintf("sending a batch of %d points...", numPoints))
 	}
 
-	err := t.transport.TransferData(t.pointBuffer)
-	if err != nil {
-		if logh.ErrorEnabled {
-			t.loggers.Error().Err(err).Msg("error transferring data")
+	points := t.pointBuffer.GetAll()
+	end := 0
+
+	for i := 0; end != numPoints; i++ {
+
+		var batchBuffer []interface{}
+
+		if numPoints <= t.defaultConfiguration.TransportBufferSize {
+			batchBuffer = points
+			end = numPoints
+		} else {
+			start := i * t.defaultConfiguration.TransportBufferSize
+			end = start + t.defaultConfiguration.TransportBufferSize
+
+			if end > numPoints {
+				end = numPoints
+			}
+
+			batchBuffer = points[start:end]
 		}
-	} else {
-		if logh.InfoEnabled {
-			t.loggers.Info().Msgf("batch of %d points were sent!", numPoints)
+
+		err := t.transport.TransferData(batchBuffer)
+		if err != nil {
+			if logh.ErrorEnabled {
+				t.loggers.Error().Err(err).Msg("error transferring data")
+			}
+		} else {
+			if logh.InfoEnabled {
+				t.loggers.Info().Msgf("batch of %d points were sent!", numPoints)
+			}
 		}
 	}
-
-	t.pointBuffer = []interface{}{}
-
-	atomic.StoreUint32(&t.isReleasingBuffer, 0)
 
 	return
 }
@@ -229,10 +199,7 @@ func (t *transportCore) Close() {
 		t.loggers.Info().Msg("closing...")
 	}
 
-	if t.pointChannel != nil {
-		close(t.pointChannel)
-	}
-
+	t.pointBuffer.Release()
 	t.started = false
 }
 

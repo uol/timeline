@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/uol/funks"
 	"github.com/uol/gotest"
 	serializer "github.com/uol/serializer/json"
 	"github.com/uol/timeline"
@@ -51,10 +52,14 @@ func createHTTPTransport(transportBufferSize int, batchSendInterval time.Duratio
 
 	transportConf := timeline.HTTPTransportConfig{
 		DefaultTransportConfiguration: timeline.DefaultTransportConfiguration{
-			RequestTimeout:       time.Second,
-			BatchSendInterval:    batchSendInterval,
+			RequestTimeout: funks.Duration{
+				Duration: time.Second,
+			},
+			BatchSendInterval: funks.Duration{
+				Duration: batchSendInterval,
+			},
 			TransportBufferSize:  transportBufferSize,
-			SerializerBufferSize: 5,
+			SerializerBufferSize: 256,
 		},
 		ServiceEndpoint:        "/api/put",
 		Method:                 "PUT",

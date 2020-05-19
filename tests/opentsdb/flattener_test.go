@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/uol/funks"
 	"github.com/uol/hashing"
 	serializer "github.com/uol/serializer/opentsdb"
 	"github.com/uol/timeline"
@@ -29,7 +30,9 @@ func createTimelineManagerF(start bool, port, transportSize int) *timeline.Manag
 	transport := createOpenTSDBTransport(transportSize, 1*time.Second)
 
 	conf := &timeline.DataTransformerConf{
-		CycleDuration:    time.Millisecond * 900,
+		CycleDuration: funks.Duration{
+			Duration: time.Millisecond * 900,
+		},
 		HashingAlgorithm: hashing.SHA256,
 	}
 

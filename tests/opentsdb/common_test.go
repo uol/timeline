@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/uol/funks"
 	serializer "github.com/uol/serializer/opentsdb"
 	"github.com/uol/timeline"
 )
@@ -43,14 +44,22 @@ func createOpenTSDBTransport(transportBufferSize int, batchSendInterval time.Dur
 
 	transportConf := timeline.OpenTSDBTransportConfig{
 		DefaultTransportConfiguration: timeline.DefaultTransportConfiguration{
-			BatchSendInterval:    batchSendInterval,
-			RequestTimeout:       1 * time.Minute,
+			BatchSendInterval: funks.Duration{
+				Duration: batchSendInterval,
+			},
+			RequestTimeout: funks.Duration{
+				Duration: time.Minute,
+			},
 			TransportBufferSize:  transportBufferSize,
 			SerializerBufferSize: 1024,
 		},
-		ReadBufferSize:      64,
-		MaxReadTimeout:      1 * time.Millisecond,
-		ReconnectionTimeout: 1 * time.Second,
+		ReadBufferSize: 64,
+		MaxReadTimeout: funks.Duration{
+			Duration: time.Millisecond,
+		},
+		ReconnectionTimeout: funks.Duration{
+			Duration: time.Second,
+		},
 	}
 
 	transport, err := timeline.NewOpenTSDBTransport(&transportConf)

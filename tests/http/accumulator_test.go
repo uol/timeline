@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/uol/funks"
 	"github.com/uol/gotest"
 	"github.com/uol/hashing"
 	serializer "github.com/uol/serializer/json"
@@ -34,7 +35,9 @@ func createTimelineManagerA(transportBufferSize int) *timeline.Manager {
 	transport := createHTTPTransport(transportBufferSize, time.Second)
 
 	conf := &timeline.DataTransformerConf{
-		CycleDuration:    time.Millisecond * 100,
+		CycleDuration: funks.Duration{
+			Duration: time.Millisecond * 100,
+		},
 		HashingAlgorithm: hashing.SHAKE128,
 		HashSize:         12,
 	}

@@ -4,6 +4,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/uol/funks"
 	"github.com/uol/gotest"
 	"github.com/uol/hashing"
 	serializer "github.com/uol/serializer/json"
@@ -26,7 +27,9 @@ func createTimelineManagerF(start bool) *timeline.Manager {
 	transport := createHTTPTransport(defaultTransportSize, time.Second)
 
 	conf := &timeline.DataTransformerConf{
-		CycleDuration:    time.Millisecond * 900,
+		CycleDuration: funks.Duration{
+			Duration: time.Millisecond * 900,
+		},
 		HashingAlgorithm: hashing.SHA256,
 	}
 

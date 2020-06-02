@@ -83,6 +83,7 @@ type DefaultTransportConfiguration struct {
 	SerializerBufferSize int
 	DebugInput           bool
 	DebugOutput          bool
+	TimeBetweenBatches   funks.Duration
 }
 
 // Validate - validates the default itens from the configuration
@@ -187,6 +188,8 @@ func (t *transportCore) releaseBuffer() {
 				t.loggers.Info().Msgf("batch of %d points were sent!", numPoints)
 			}
 		}
+
+		<-time.After(t.defaultConfiguration.TimeBetweenBatches.Duration)
 	}
 
 	return

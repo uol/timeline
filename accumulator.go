@@ -93,7 +93,11 @@ func (a *Accumulator) ProcessMapEntry(entry interface{}) bool {
 		item, err := a.transport.AccumulatedDataToDataChannelItem(data)
 		if err != nil {
 			if logh.ErrorEnabled {
-				a.loggers.Error().Msg(err.Error())
+				ev := a.loggers.Error()
+				if a.transport.PrintStackOnError() {
+					ev = ev.Caller()
+				}
+				ev.Err(err).Msg(err.Error())
 			}
 		}
 

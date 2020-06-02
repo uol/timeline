@@ -118,7 +118,11 @@ func (t *OpenTSDBTransport) panicRecovery() {
 
 	if r := recover(); r != nil {
 		if logh.ErrorEnabled {
-			t.core.loggers.Error().Err(r.(error)).Msg("error recovery")
+			ev := t.core.loggers.Error()
+			if t.PrintStackOnError() {
+				ev = ev.Caller()
+			}
+			ev.Err(r.(error)).Msg("error recovery")
 		}
 	}
 }
@@ -145,7 +149,11 @@ func (t *OpenTSDBTransport) TransferData(dataList []interface{}) error {
 		if dataList[i] == nil {
 
 			if logh.ErrorEnabled {
-				t.core.loggers.Error().Msgf("null point at buffer index: %d", i)
+				ev := t.core.loggers.Error()
+				if t.PrintStackOnError() {
+					ev = ev.Caller()
+				}
+				ev.Msgf("null point at buffer index: %d", i)
 			}
 
 			continue
@@ -155,7 +163,11 @@ func (t *OpenTSDBTransport) TransferData(dataList []interface{}) error {
 		if !ok {
 
 			if logh.ErrorEnabled {
-				t.core.loggers.Error().Msgf("could not cast object: %+v", dataList[i])
+				ev := t.core.loggers.Error()
+				if t.PrintStackOnError() {
+					ev = ev.Caller()
+				}
+				ev.Msgf("could not cast object: %+v", dataList[i])
 			}
 
 			return fmt.Errorf("error casting data to serializer.ArrayItem: %+v", dataList[i])
@@ -208,7 +220,11 @@ func (t *OpenTSDBTransport) writePayload(payload string) bool {
 	err := t.connection.SetWriteDeadline(time.Now().Add(t.configuration.RequestTimeout.Duration))
 	if err != nil {
 		if logh.ErrorEnabled {
-			t.core.loggers.Error().Err(err).Msg("error setting write deadline")
+			ev := t.core.loggers.Error()
+			if t.PrintStackOnError() {
+				ev = ev.Caller()
+			}
+			ev.Err(err).Msg("error setting write deadline")
 		}
 		return false
 	}
@@ -231,7 +247,11 @@ func (t *OpenTSDBTransport) writePayload(payload string) bool {
 	err = t.connection.SetReadDeadline(time.Now().Add(t.configuration.MaxReadTimeout.Duration))
 	if err != nil {
 		if logh.ErrorEnabled {
-			t.core.loggers.Error().Err(err).Msg("error setting read deadline")
+			ev := t.core.loggers.Error()
+			if t.PrintStackOnError() {
+				ev = ev.Caller()
+			}
+			ev.Err(err).Msg("error setting read deadline")
 		}
 		return false
 	}
@@ -253,7 +273,11 @@ func (t *OpenTSDBTransport) writePayload(payload string) bool {
 	err = t.connection.SetDeadline(time.Time{})
 	if err != nil {
 		if logh.ErrorEnabled {
-			t.core.loggers.Error().Msg("error setting connection's deadline")
+			ev := t.core.loggers.Error()
+			if t.PrintStackOnError() {
+				ev = ev.Caller()
+			}
+			ev.Msg("error setting connection's deadline")
 		}
 		return false
 	}
@@ -266,20 +290,32 @@ func (t *OpenTSDBTransport) logConnectionError(err error, operation rwOp) {
 
 	if err == io.EOF {
 		if logh.ErrorEnabled {
-			t.core.loggers.Error().Msg(fmt.Sprintf("[%s] connection EOF received, retrying connection...", operation))
+			ev := t.core.loggers.Error()
+			if t.PrintStackOnError() {
+				ev = ev.Caller()
+			}
+			ev.Msg(fmt.Sprintf("[%s] connection EOF received, retrying connection...", operation))
 		}
 		return
 	}
 
 	if castedErr, ok := err.(net.Error); ok && castedErr.Timeout() {
 		if logh.ErrorEnabled {
-			t.core.loggers.Error().Msg(fmt.Sprintf("[%s] connection timeout received, retrying connection...", operation))
+			ev := t.core.loggers.Error()
+			if t.PrintStackOnError() {
+				ev = ev.Caller()
+			}
+			ev.Msg(fmt.Sprintf("[%s] connection timeout received, retrying connection...", operation))
 		}
 		return
 	}
 
 	if logh.ErrorEnabled {
-		t.core.loggers.Error().Msg(fmt.Sprintf("[%s] error executing operation on connection: %s", operation, err.Error()))
+		ev := t.core.loggers.Error()
+		if t.PrintStackOnError() {
+			ev = ev.Caller()
+		}
+		ev.Msg(fmt.Sprintf("[%s] error executing operation on connection: %s", operation, err.Error()))
 	}
 }
 
@@ -293,7 +329,11 @@ func (t *OpenTSDBTransport) closeConnection() {
 	err := t.connection.Close()
 	if err != nil {
 		if logh.ErrorEnabled {
-			t.core.loggers.Error().Err(err).Msg("error closing connection")
+			ev := t.core.loggers.Error()
+			if t.PrintStackOnError() {
+				ev = ev.Caller()
+			}
+			ev.Err(err).Msg("error closing connection")
 		}
 	}
 
@@ -358,7 +398,11 @@ func (t *OpenTSDBTransport) connect() bool {
 	err = t.connection.SetDeadline(time.Time{})
 	if err != nil {
 		if logh.ErrorEnabled {
-			t.core.loggers.Error().Msg("error setting connection's deadline")
+			ev := t.core.loggers.Error()
+			if t.PrintStackOnError() {
+				ev = ev.Caller()
+			}
+			ev.Msg("error setting connection's deadline")
 		}
 		t.closeConnection()
 		return false
@@ -385,4 +429,10 @@ func (t *OpenTSDBTransport) Close() {
 func (t *OpenTSDBTransport) Serialize(item interface{}) (string, error) {
 
 	return t.serializer.SerializeGeneric(item)
+}
+
+// PrintStackOnError - enables the stack print to the log
+func (t *OpenTSDBTransport) PrintStackOnError() bool {
+
+	return t.configuration.PrintStackOnError
 }

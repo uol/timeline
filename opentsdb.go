@@ -34,13 +34,16 @@ type OpenTSDBTransportConfig struct {
 	MaxReadTimeout         funks.Duration
 	ReconnectionTimeout    funks.Duration
 	MaxReconnectionRetries int
+	DisconnectAfterWrites  bool
 }
 
 type rwOp string
 
 const (
 	read               rwOp = "read"
+	readConnClosed     rwOp = "read_conn_closed"
 	write              rwOp = "write"
+	writeConnClosed    rwOp = "write_conn_closed"
 	defaultConnRetries int  = 3
 )
 
@@ -169,7 +172,7 @@ func (t *OpenTSDBTransport) TransferData(dataList []interface{}) error {
 	t.core.debugOutput(payload)
 
 	if logh.DebugEnabled {
-		logh.Debug().Msgf("sending a payload of %d bytes", len(payload))
+		t.core.loggers.Debug().Msgf("sending a payload of %d bytes", len(payload))
 	}
 
 	defer t.panicRecovery()
@@ -179,6 +182,12 @@ func (t *OpenTSDBTransport) TransferData(dataList []interface{}) error {
 			t.closeConnection()
 			t.retryConnect()
 		} else {
+			if t.configuration.DisconnectAfterWrites {
+				if logh.DebugEnabled {
+					t.core.loggers.Debug().Msg("disconnecting after successful write")
+				}
+				t.closeConnection()
+			}
 			break
 		}
 	}
@@ -206,6 +215,11 @@ func (t *OpenTSDBTransport) writePayload(payload string) bool {
 
 	n, err := t.connection.Write(([]byte)(payload))
 	if err != nil {
+		if err == io.EOF {
+			t.logConnectionError(err, writeConnClosed)
+			return false
+		}
+
 		t.logConnectionError(err, write)
 		return false
 	}
@@ -213,8 +227,6 @@ func (t *OpenTSDBTransport) writePayload(payload string) bool {
 	if logh.DebugEnabled {
 		logh.Debug().Msgf("%d bytes were written to the connection", n)
 	}
-
-	readBuffer := make([]byte, t.configuration.ReadBufferSize)
 
 	err = t.connection.SetReadDeadline(time.Now().Add(t.configuration.MaxReadTimeout.Duration))
 	if err != nil {
@@ -224,8 +236,14 @@ func (t *OpenTSDBTransport) writePayload(payload string) bool {
 		return false
 	}
 
+	readBuffer := make([]byte, t.configuration.ReadBufferSize)
 	_, err = t.connection.Read(readBuffer)
 	if err != nil {
+		if err == io.EOF {
+			t.logConnectionError(err, readConnClosed)
+			return false
+		}
+
 		if castedErr, ok := err.(net.Error); ok && !castedErr.Timeout() {
 			t.logConnectionError(err, read)
 			return false

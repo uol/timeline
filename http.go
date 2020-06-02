@@ -122,7 +122,11 @@ func (t *HTTPTransport) TransferData(dataList []interface{}) error {
 		if dataList[i] == nil {
 
 			if logh.ErrorEnabled {
-				t.core.loggers.Error().Msgf("null point at buffer index: %d", i)
+				ev := t.core.loggers.Error()
+				if t.PrintStackOnError() {
+					ev = ev.Caller()
+				}
+				ev.Msgf("null point at buffer index: %d", i)
 			}
 
 			continue
@@ -132,7 +136,11 @@ func (t *HTTPTransport) TransferData(dataList []interface{}) error {
 		if !ok {
 
 			if logh.ErrorEnabled {
-				t.core.loggers.Error().Msgf("could not cast object: %+v", dataList[i])
+				ev := t.core.loggers.Error()
+				if t.PrintStackOnError() {
+					ev = ev.Caller()
+				}
+				ev.Msgf("could not cast object: %+v", dataList[i])
 			}
 
 			return fmt.Errorf("error casting data to serializer.ArrayItem: %+v", dataList[i])
@@ -197,4 +205,10 @@ func (t *HTTPTransport) Close() {
 func (t *HTTPTransport) Serialize(item interface{}) (string, error) {
 
 	return t.serializer.SerializeGeneric(item)
+}
+
+// PrintStackOnError - enables the stack print to the log
+func (t *HTTPTransport) PrintStackOnError() bool {
+
+	return t.configuration.PrintStackOnError
 }

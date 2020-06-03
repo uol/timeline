@@ -70,11 +70,16 @@ func NewFlattener(configuration *DataTransformerConf) *Flattener {
 
 	configuration.isSHAKE = isShakeAlgorithm(configuration.HashingAlgorithm)
 
+	logContext := []string{"pkg", "timeline/flattener"}
+	if len(configuration.Name) > 0 {
+		logContext = append(logContext, "name", configuration.Name)
+	}
+
 	f := &Flattener{
 		dataProcessorCore: dataProcessorCore{
 			configuration: configuration,
 			pointMap:      sync.Map{},
-			loggers:       logh.CreateContextualLogger("pkg", "timeline/flattener"),
+			loggers:       logh.CreateContextualLogger(logContext...),
 		},
 	}
 

@@ -76,10 +76,15 @@ func NewOpenTSDBTransport(configuration *OpenTSDBTransportConfig) (*OpenTSDBTran
 
 	s := serializer.New(configuration.SerializerBufferSize)
 
+	logContext := []string{"pkg", "timeline/opentsdb"}
+	if len(configuration.Name) > 0 {
+		logContext = append(logContext, "name", configuration.Name)
+	}
+
 	t := &OpenTSDBTransport{
 		core: transportCore{
 			batchSendInterval:    configuration.BatchSendInterval.Duration,
-			loggers:              logh.CreateContextualLogger("pkg", "timeline/opentsdb"),
+			loggers:              logh.CreateContextualLogger(logContext...),
 			defaultConfiguration: &configuration.DefaultTransportConfiguration,
 		},
 		configuration: configuration,

@@ -70,12 +70,17 @@ func NewAccumulator(configuration *DataTransformerConf) *Accumulator {
 
 	configuration.isSHAKE = isShakeAlgorithm(configuration.HashingAlgorithm)
 
+	logContext := []string{"pkg", "timeline/accumulator"}
+	if len(configuration.Name) > 0 {
+		logContext = append(logContext, "name", configuration.Name)
+	}
+
 	a := &Accumulator{
 		ttlManager: scheduler.New(),
 		dataProcessorCore: dataProcessorCore{
 			configuration: configuration,
 			pointMap:      sync.Map{},
-			loggers:       logh.CreateContextualLogger("pkg", "timeline/accumulator"),
+			loggers:       logh.CreateContextualLogger(logContext...),
 		},
 	}
 

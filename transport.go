@@ -88,6 +88,7 @@ type DefaultTransportConfiguration struct {
 	DebugOutput          bool
 	TimeBetweenBatches   funks.Duration
 	PrintStackOnError    bool
+	Name                 string
 }
 
 // Validate - validates the default itens from the configuration

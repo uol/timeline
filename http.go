@@ -57,10 +57,15 @@ func NewHTTPTransport(configuration *HTTPTransportConfig) (*HTTPTransport, error
 
 	s := serializer.New(configuration.SerializerBufferSize)
 
+	logContext := []string{"pkg", "timeline/http"}
+	if len(configuration.Name) > 0 {
+		logContext = append(logContext, "name", configuration.Name)
+	}
+
 	t := &HTTPTransport{
 		core: transportCore{
 			batchSendInterval:    configuration.BatchSendInterval.Duration,
-			loggers:              logh.CreateContextualLogger("pkg", "timeline/http"),
+			loggers:              logh.CreateContextualLogger(logContext...),
 			defaultConfiguration: &configuration.DefaultTransportConfiguration,
 		},
 		configuration: configuration,

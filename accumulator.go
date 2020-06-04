@@ -170,6 +170,10 @@ func (a *Accumulator) store(hash string, instance Hashable, ttl time.Duration) e
 		if logh.WarnEnabled {
 			a.loggers.Warn().Msgf("a key was replaced on storage operation: %s", hash)
 		}
+
+		if a.ttlManager.Exists(hash) {
+			a.ttlManager.RemoveTask(hash)
+		}
 	}
 
 	data := instance.(*AccumulatedData)

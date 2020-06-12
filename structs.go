@@ -10,6 +10,12 @@ import (
 * @author rnojiri
 **/
 
+// Backend - the destiny opentsdb backend
+type Backend struct {
+	Host string `json:"host,omitempty"`
+	Port int    `json:"port,omitempty"`
+}
+
 // DataTransformerConfig - flattener configuration
 type DataTransformerConfig struct {
 	CycleDuration    funks.Duration    `json:"cycleDuration,omitempty"`

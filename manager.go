@@ -23,14 +23,8 @@ type Manager struct {
 	name        string
 }
 
-// Backend - the destiny opentsdb backend
-type Backend struct {
-	Host string
-	Port int
-}
-
 // NewManager - creates a timeline manager
-func NewManager(transport Transport, flattener, accumulator DataProcessor, backend *Backend) (*Manager, error) {
+func NewManager(transport Transport, flattener, accumulator DataProcessor, backend *Backend, customContext ...string) (*Manager, error) {
 
 	if transport == nil {
 		return nil, fmt.Errorf("transport implementation is required")
@@ -45,21 +39,25 @@ func NewManager(transport Transport, flattener, accumulator DataProcessor, backe
 		return nil, err
 	}
 
-	listeningOn := fmt.Sprintf("%s:%d", backend.Host, backend.Port)
+	loggerContext := []string{logContextID, fmt.Sprintf("%s:%d", backend.Host, backend.Port)}
 
-	transport.BuildContextualLogger(logContextID, listeningOn)
+	if len(customContext) > 0 {
+		loggerContext = append(loggerContext, customContext...)
+	}
+
+	transport.BuildContextualLogger(loggerContext...)
 
 	var f *Flattener
 	if flattener != nil {
 		flattener.SetTransport(transport)
-		flattener.BuildContextualLogger(logContextID, listeningOn)
+		flattener.BuildContextualLogger(loggerContext...)
 		f = flattener.(*Flattener)
 	}
 
 	var a *Accumulator
 	if accumulator != nil {
 		accumulator.SetTransport(transport)
-		accumulator.BuildContextualLogger(logContextID, listeningOn)
+		accumulator.BuildContextualLogger(loggerContext...)
 		a = accumulator.(*Accumulator)
 	}
 

@@ -1,0 +1,38 @@
+[openTSDBTransport]
+    readBufferSize = 64
+    maxReadTimeout = "100ms"
+    reconnectionTimeout = "3s"
+    maxReconnectionRetries = 5
+    disconnectAfterWrites = true
+    transportBufferSize = 1024
+    batchSendInterval = "30s"
+    requestTimeout = "5s"
+    serializerBufferSize = 2048
+    debugInput = false
+    debugOutput = true
+    timeBetweenBatches = "10ms"
+    printStackOnError = true
+
+[httpTransport]
+    serviceEndpoint = "/api/put"
+    method = "POST"
+    expectedResponseStatus = 204
+    timestampProperty = "timestamp"
+    valueProperty = "value"
+    transportBufferSize = 64
+    batchSendInterval = "1m"
+    requestTimeout = "60s"
+    serializerBufferSize = 512
+    debugInput = true
+    debugOutput = false
+    timeBetweenBatches = "5s"
+    printStackOnError = false
+
+[dataTransformer]
+    hashingAlgorithm = "shake128"
+    hashSize = 7
+    cycleDuration = "15s"
+
+[backend]
+    host = "host1"
+    port = 8123

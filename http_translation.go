@@ -88,7 +88,7 @@ func (t *HTTPTransport) extractData(instance interface{}, operation *FlatOperati
 }
 
 // DataChannelItemToFlattenerPoint - converts the data channel item to the flattened point one
-func (t *HTTPTransport) DataChannelItemToFlattenerPoint(configuration *DataTransformerConf, instance interface{}, operation FlatOperation) (Hashable, error) {
+func (t *HTTPTransport) DataChannelItemToFlattenerPoint(configuration *DataTransformerConfig, instance interface{}, operation FlatOperation) (Hashable, error) {
 
 	item, value, timestamp, hashParameters, err := t.extractData(instance, &operation, false)
 	if err != nil {
@@ -128,7 +128,7 @@ func (t *HTTPTransport) FlattenerPointToDataChannelItem(point *FlattenerPoint) (
 }
 
 // DataChannelItemToAccumulatedData - converts the data channel item to the accumulated data
-func (t *HTTPTransport) DataChannelItemToAccumulatedData(configuration *DataTransformerConf, instance interface{}, calculateHash bool) (Hashable, error) {
+func (t *HTTPTransport) DataChannelItemToAccumulatedData(configuration *DataTransformerConfig, instance interface{}, calculateHash bool) (Hashable, error) {
 
 	casted, _, _, hashParameters, err := t.extractData(instance, nil, true)
 	if err != nil {

@@ -19,6 +19,7 @@ const (
 	testServerHost string = "localhost"
 	testServerPort int    = 18080
 	channelSize    int    = 10
+	managerName    string = "testManagerHTTP"
 )
 
 // createTimeseriesBackend - creates a new test server simulating a timeseries backend
@@ -53,7 +54,7 @@ const (
 func createHTTPTransport(transportBufferSize int, batchSendInterval time.Duration) *timeline.HTTPTransport {
 
 	transportConf := timeline.HTTPTransportConfig{
-		DefaultTransportConfiguration: timeline.DefaultTransportConfiguration{
+		DefaultTransportConfig: timeline.DefaultTransportConfig{
 			RequestTimeout: funks.Duration{
 				Duration: time.Second,
 			},

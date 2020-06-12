@@ -18,6 +18,7 @@ type Manager struct {
 	transport   Transport
 	flattener   *Flattener
 	accumulator *Accumulator
+	name        string
 }
 
 // Backend - the destiny opentsdb backend
@@ -27,7 +28,7 @@ type Backend struct {
 }
 
 // NewManager - creates a timeline manager
-func NewManager(transport Transport, flattener, accumulator DataProcessor, backend *Backend) (*Manager, error) {
+func NewManager(name string, transport Transport, flattener, accumulator DataProcessor, backend *Backend) (*Manager, error) {
 
 	if transport == nil {
 		return nil, fmt.Errorf("transport implementation is required")
@@ -58,6 +59,7 @@ func NewManager(transport Transport, flattener, accumulator DataProcessor, backe
 		transport:   transport,
 		flattener:   f,
 		accumulator: a,
+		name:        name,
 	}, nil
 }
 

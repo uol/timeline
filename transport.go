@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/uol/funks"
 	"github.com/uol/logh"
 	"github.com/uol/timeline/buffer"
 )
@@ -46,19 +45,22 @@ type Transport interface {
 	Serialize(item interface{}) (string, error)
 
 	// DataChannelItemToFlattenerPoint - converts the data channel item to the flattened point
-	DataChannelItemToFlattenerPoint(configuration *DataTransformerConf, item interface{}, operation FlatOperation) (Hashable, error)
+	DataChannelItemToFlattenerPoint(configuration *DataTransformerConfig, item interface{}, operation FlatOperation) (Hashable, error)
 
 	// FlattenerPointToDataChannelItem - converts the flattened point to the data channel item
 	FlattenerPointToDataChannelItem(item *FlattenerPoint) (interface{}, error)
 
 	// DataChannelItemToAccumulatedData - converts the data channel item to the accumulated data
-	DataChannelItemToAccumulatedData(configuration *DataTransformerConf, item interface{}, calculateHash bool) (Hashable, error)
+	DataChannelItemToAccumulatedData(configuration *DataTransformerConfig, item interface{}, calculateHash bool) (Hashable, error)
 
 	// AccumulatedDataToDataChannelItem - converts the accumulated data to the data channel item
 	AccumulatedDataToDataChannelItem(item *AccumulatedData) (interface{}, error)
 
 	// PrintStackOnError - enables the stack print to the log
 	PrintStackOnError() bool
+
+	// BuildContextualLogger - build the contextual logger using more info
+	BuildContextualLogger(path ...string)
 }
 
 // Hashable - a struct with hash function
@@ -75,24 +77,11 @@ type transportCore struct {
 	pointBuffer          *buffer.Buffer
 	loggers              *logh.ContextualLogger
 	started              bool
-	defaultConfiguration *DefaultTransportConfiguration
-}
-
-// DefaultTransportConfiguration - the default fields used by the transport configuration
-type DefaultTransportConfiguration struct {
-	TransportBufferSize  int
-	BatchSendInterval    funks.Duration
-	RequestTimeout       funks.Duration
-	SerializerBufferSize int
-	DebugInput           bool
-	DebugOutput          bool
-	TimeBetweenBatches   funks.Duration
-	PrintStackOnError    bool
-	Name                 string
+	defaultConfiguration *DefaultTransportConfig
 }
 
 // Validate - validates the default itens from the configuration
-func (c *DefaultTransportConfiguration) Validate() error {
+func (c *DefaultTransportConfig) Validate() error {
 
 	if c.TransportBufferSize <= 0 {
 		return fmt.Errorf("invalid buffer size: %d", c.TransportBufferSize)

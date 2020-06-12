@@ -31,7 +31,7 @@ func createTimelineManager(start bool, transportSize int, batchSendInterval time
 
 	transport := createHTTPTransport(transportSize, batchSendInterval)
 
-	manager, err := timeline.NewManager(transport, nil, nil, &backend)
+	manager, err := timeline.NewManager(managerName, transport, nil, nil, &backend)
 	if err != nil {
 		panic(err)
 	}

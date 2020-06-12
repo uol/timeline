@@ -24,14 +24,15 @@ var (
 )
 
 const (
-	timeBetweenBatches int = 50
+	timeBetweenBatches int    = 50
+	managerName        string = "testManagerOpenTSDB"
 )
 
-// createOpenTSDBTransport - creates the http transport
+// createOpenTSDBTransport - creates the opentsdb transport
 func createOpenTSDBTransport(transportBufferSize int, batchSendInterval time.Duration) *timeline.OpenTSDBTransport {
 
 	transportConf := timeline.OpenTSDBTransportConfig{
-		DefaultTransportConfiguration: timeline.DefaultTransportConfiguration{
+		DefaultTransportConfig: timeline.DefaultTransportConfig{
 			BatchSendInterval: funks.Duration{
 				Duration: batchSendInterval,
 			},

@@ -6,7 +6,6 @@ import (
 	"net"
 	"time"
 
-	"github.com/uol/funks"
 	"github.com/uol/logh"
 	serializer "github.com/uol/serializer/opentsdb"
 )
@@ -25,16 +24,6 @@ type OpenTSDBTransport struct {
 	connection    net.Conn
 	started       bool
 	connected     bool
-}
-
-// OpenTSDBTransportConfig - has all openTSDB event manager configurations
-type OpenTSDBTransportConfig struct {
-	DefaultTransportConfiguration
-	ReadBufferSize         int
-	MaxReadTimeout         funks.Duration
-	ReconnectionTimeout    funks.Duration
-	MaxReconnectionRetries int
-	DisconnectAfterWrites  bool
 }
 
 type rwOp string
@@ -76,16 +65,10 @@ func NewOpenTSDBTransport(configuration *OpenTSDBTransportConfig) (*OpenTSDBTran
 
 	s := serializer.New(configuration.SerializerBufferSize)
 
-	logContext := []string{"pkg", "timeline/opentsdb"}
-	if len(configuration.Name) > 0 {
-		logContext = append(logContext, "name", configuration.Name)
-	}
-
 	t := &OpenTSDBTransport{
 		core: transportCore{
 			batchSendInterval:    configuration.BatchSendInterval.Duration,
-			loggers:              logh.CreateContextualLogger(logContext...),
-			defaultConfiguration: &configuration.DefaultTransportConfiguration,
+			defaultConfiguration: &configuration.DefaultTransportConfig,
 		},
 		configuration: configuration,
 		serializer:    s,
@@ -94,6 +77,18 @@ func NewOpenTSDBTransport(configuration *OpenTSDBTransportConfig) (*OpenTSDBTran
 	t.core.transport = t
 
 	return t, nil
+}
+
+// BuildContextualLogger - build the contextual logger using more info
+func (t *OpenTSDBTransport) BuildContextualLogger(path ...string) {
+
+	logContext := []string{"pkg", "timeline/opentsdb"}
+
+	if len(path) > 0 {
+		logContext = append(logContext, path...)
+	}
+
+	t.core.loggers = logh.CreateContextualLogger(logContext...)
 }
 
 // ConfigureBackend - configures the backend

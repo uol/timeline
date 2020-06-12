@@ -26,16 +26,6 @@ type HTTPTransport struct {
 	useCustomJSONMapping bool
 }
 
-// HTTPTransportConfig - has all HTTP event manager configurations
-type HTTPTransportConfig struct {
-	DefaultTransportConfiguration
-	ServiceEndpoint        string
-	Method                 string
-	ExpectedResponseStatus int
-	TimestampProperty      string
-	ValueProperty          string
-}
-
 // NewHTTPTransport - creates a new HTTP event manager
 func NewHTTPTransport(configuration *HTTPTransportConfig) (*HTTPTransport, error) {
 
@@ -57,16 +47,10 @@ func NewHTTPTransport(configuration *HTTPTransportConfig) (*HTTPTransport, error
 
 	s := serializer.New(configuration.SerializerBufferSize)
 
-	logContext := []string{"pkg", "timeline/http"}
-	if len(configuration.Name) > 0 {
-		logContext = append(logContext, "name", configuration.Name)
-	}
-
 	t := &HTTPTransport{
 		core: transportCore{
 			batchSendInterval:    configuration.BatchSendInterval.Duration,
-			loggers:              logh.CreateContextualLogger(logContext...),
-			defaultConfiguration: &configuration.DefaultTransportConfiguration,
+			defaultConfiguration: &configuration.DefaultTransportConfig,
 		},
 		configuration: configuration,
 		httpClient:    funks.CreateHTTPClient(configuration.RequestTimeout.Duration, true),
@@ -76,6 +60,18 @@ func NewHTTPTransport(configuration *HTTPTransportConfig) (*HTTPTransport, error
 	t.core.transport = t
 
 	return t, nil
+}
+
+// BuildContextualLogger - build the contextual logger using more info
+func (t *HTTPTransport) BuildContextualLogger(path ...string) {
+
+	logContext := []string{"pkg", "timeline/http"}
+
+	if len(path) > 0 {
+		logContext = append(logContext, path...)
+	}
+
+	t.core.loggers = logh.CreateContextualLogger(logContext...)
 }
 
 // AddJSONMapping - overrides the default generic property mappings

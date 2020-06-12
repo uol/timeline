@@ -39,7 +39,7 @@ func createTimelineManagerF(start bool, port, transportSize int) *timeline.Manag
 
 	flattener := timeline.NewFlattener(conf)
 
-	manager, err := timeline.NewManager(managerName, transport, flattener, nil, &backend)
+	manager, err := timeline.NewManager(transport, flattener, nil, &backend)
 	if err != nil {
 		panic(err)
 	}

@@ -13,6 +13,8 @@ import (
 * @author rnojiri
 **/
 
+const logContextID string = "id"
+
 // Manager - the parent of all event managers
 type Manager struct {
 	transport   Transport
@@ -28,7 +30,7 @@ type Backend struct {
 }
 
 // NewManager - creates a timeline manager
-func NewManager(name string, transport Transport, flattener, accumulator DataProcessor, backend *Backend) (*Manager, error) {
+func NewManager(transport Transport, flattener, accumulator DataProcessor, backend *Backend) (*Manager, error) {
 
 	if transport == nil {
 		return nil, fmt.Errorf("transport implementation is required")
@@ -43,15 +45,21 @@ func NewManager(name string, transport Transport, flattener, accumulator DataPro
 		return nil, err
 	}
 
+	listeningOn := fmt.Sprintf("%s:%d", backend.Host, backend.Port)
+
+	transport.BuildContextualLogger(logContextID, listeningOn)
+
 	var f *Flattener
 	if flattener != nil {
 		flattener.SetTransport(transport)
+		flattener.BuildContextualLogger(logContextID, listeningOn)
 		f = flattener.(*Flattener)
 	}
 
 	var a *Accumulator
 	if accumulator != nil {
 		accumulator.SetTransport(transport)
+		accumulator.BuildContextualLogger(logContextID, listeningOn)
 		a = accumulator.(*Accumulator)
 	}
 
@@ -59,7 +67,6 @@ func NewManager(name string, transport Transport, flattener, accumulator DataPro
 		transport:   transport,
 		flattener:   f,
 		accumulator: a,
-		name:        name,
 	}, nil
 }
 

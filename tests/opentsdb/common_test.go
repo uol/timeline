@@ -24,8 +24,7 @@ var (
 )
 
 const (
-	timeBetweenBatches int    = 50
-	managerName        string = "testManagerOpenTSDB"
+	timeBetweenBatches int = 50
 )
 
 // createOpenTSDBTransport - creates the opentsdb transport

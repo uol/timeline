@@ -35,7 +35,7 @@ func createTimelineManagerF(start bool) *timeline.Manager {
 
 	flattener := timeline.NewFlattener(conf)
 
-	manager, err := timeline.NewManager(managerName, transport, flattener, nil, &backend)
+	manager, err := timeline.NewManager(transport, flattener, nil, &backend)
 	if err != nil {
 		panic(err)
 	}

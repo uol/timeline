@@ -31,7 +31,7 @@ func createTimelineManager(start bool, transportSize int, batchSendInterval time
 
 	transport := createHTTPTransport(transportSize, batchSendInterval)
 
-	manager, err := timeline.NewManager(managerName, transport, nil, nil, &backend)
+	manager, err := timeline.NewManager(transport, nil, nil, &backend)
 	if err != nil {
 		panic(err)
 	}
@@ -447,5 +447,5 @@ func TestExceedingBufferSize(t *testing.T) {
 
 	// the last time will be the same as $batchSendDuration
 	assert.GreaterOrEqual(t, requests[numRequests-1].Date.Unix()-firstPointTime, int64(batchSendInterval.Seconds()), "expected greater than batch interval")
-	assert.Less(t, requests[numRequests-1].Date.Unix()-firstPointTime, int64(batchSendInterval.Seconds()+1), "expected less than batch interval plus one second")
+	assert.LessOrEqual(t, requests[numRequests-1].Date.Unix()-firstPointTime, int64(batchSendInterval.Seconds()+1), "expected less than batch interval plus one second")
 }

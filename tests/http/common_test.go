@@ -19,7 +19,6 @@ const (
 	testServerHost string = "localhost"
 	testServerPort int    = 18080
 	channelSize    int    = 10
-	managerName    string = "testManagerHTTP"
 )
 
 // createTimeseriesBackend - creates a new test server simulating a timeseries backend

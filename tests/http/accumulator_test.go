@@ -44,7 +44,7 @@ func createTimelineManagerA(transportBufferSize int) *timeline.Manager {
 
 	accumulator := timeline.NewAccumulator(conf)
 
-	manager, err := timeline.NewManager(managerName, transport, nil, accumulator, &backend)
+	manager, err := timeline.NewManager(transport, nil, accumulator, &backend)
 	if err != nil {
 		panic(err)
 	}

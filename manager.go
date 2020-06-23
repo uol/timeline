@@ -34,11 +34,6 @@ func NewManager(transport Transport, flattener, accumulator DataProcessor, backe
 		return nil, fmt.Errorf("no backend configuration was found")
 	}
 
-	err := transport.ConfigureBackend(backend)
-	if err != nil {
-		return nil, err
-	}
-
 	loggerContext := []string{logContextID, fmt.Sprintf("%s:%d", backend.Host, backend.Port)}
 
 	if len(customContext) > 0 {
@@ -47,17 +42,22 @@ func NewManager(transport Transport, flattener, accumulator DataProcessor, backe
 
 	transport.BuildContextualLogger(loggerContext...)
 
+	err := transport.ConfigureBackend(backend)
+	if err != nil {
+		return nil, err
+	}
+
 	var f *Flattener
 	if flattener != nil {
-		flattener.SetTransport(transport)
 		flattener.BuildContextualLogger(loggerContext...)
+		flattener.SetTransport(transport)
 		f = flattener.(*Flattener)
 	}
 
 	var a *Accumulator
 	if accumulator != nil {
-		accumulator.SetTransport(transport)
 		accumulator.BuildContextualLogger(loggerContext...)
+		accumulator.SetTransport(transport)
 		a = accumulator.(*Accumulator)
 	}
 

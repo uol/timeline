@@ -105,7 +105,7 @@ func (a *Accumulator) ProcessMapEntry(entry interface{}) bool {
 		if err != nil {
 			if logh.ErrorEnabled {
 				ev := a.loggers.Error()
-				if a.transport.PrintStackOnError() {
+				if a.dataProcessorCore.configuration.PrintStackOnError {
 					ev = ev.Caller()
 				}
 				ev.Err(err).Msg(err.Error())

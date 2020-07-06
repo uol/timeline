@@ -23,11 +23,13 @@ type MainConf struct {
 
 var expected = MainConf{
 	OpenTSDBTransport: &timeline.OpenTSDBTransportConfig{
-		ReadBufferSize:         64,
-		MaxReadTimeout:         *funks.ForceNewStringDuration("100ms"),
-		ReconnectionTimeout:    *funks.ForceNewStringDuration("3s"),
-		MaxReconnectionRetries: 5,
-		DisconnectAfterWrites:  true,
+		ReadBufferSize: 64,
+		MaxReadTimeout: *funks.ForceNewStringDuration("100ms"),
+		TCPUDPTransportConfig: timeline.TCPUDPTransportConfig{
+			ReconnectionTimeout:    *funks.ForceNewStringDuration("3s"),
+			MaxReconnectionRetries: 5,
+			DisconnectAfterWrites:  true,
+		},
 		DefaultTransportConfig: timeline.DefaultTransportConfig{
 			TransportBufferSize:  1024,
 			BatchSendInterval:    *funks.ForceNewStringDuration("30s"),
@@ -43,8 +45,10 @@ var expected = MainConf{
 		ServiceEndpoint:        "/api/put",
 		Method:                 "POST",
 		ExpectedResponseStatus: 204,
-		TimestampProperty:      "timestamp",
-		ValueProperty:          "value",
+		CustomSerializerConfig: timeline.CustomSerializerConfig{
+			TimestampProperty: "timestamp",
+			ValueProperty:     "value",
+		},
 		DefaultTransportConfig: timeline.DefaultTransportConfig{
 			TransportBufferSize:  64,
 			BatchSendInterval:    *funks.ForceNewStringDuration("1m"),

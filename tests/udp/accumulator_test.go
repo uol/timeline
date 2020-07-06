@@ -1,7 +1,8 @@
-package timeline_http_test
+package timeline_udp_test
 
 import (
 	"math/rand"
+	"sort"
 	"strconv"
 	"sync"
 	"testing"
@@ -9,7 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/uol/funks"
-	gotesthttp "github.com/uol/gotest/http"
+	"github.com/uol/gotest/tcpudp"
 	"github.com/uol/hashing"
 	serializer "github.com/uol/serializer/json"
 	"github.com/uol/timeline"
@@ -21,16 +22,14 @@ import (
 **/
 
 // createTimelineManagerA - creates a new timeline manager
-func createTimelineManagerA(transportBufferSize int) *timeline.Manager {
-
-	rand.Seed(time.Now().Unix())
+func createTimelineManagerA(port, transportBufferSize int) *timeline.Manager {
 
 	backend := timeline.Backend{
-		Host: testServerHost,
-		Port: testServerPort,
+		Host: defaultConf.Host,
+		Port: port,
 	}
 
-	transport := createHTTPTransport(transportBufferSize, time.Second, applicationJSON, nil)
+	transport := createUDPTransport(transportBufferSize, 1*time.Second, nil)
 
 	conf := &timeline.DataTransformerConfig{
 		CycleDuration: funks.Duration{
@@ -80,7 +79,10 @@ func genCustomHash() string {
 
 func testStorage(t *testing.T, customStorage bool) {
 
-	m := createTimelineManagerA(defaultTransportSize)
+	s, port := tcpudp.NewUDPServer(&defaultConf, true)
+	defer s.Stop()
+
+	m := createTimelineManagerA(port, defaultTransportSize)
 	defer m.Shutdown()
 
 	n := newNumberPoint(0)
@@ -130,10 +132,10 @@ type accumParam struct {
 // testAdd - tests the add operation
 func testAdd(t *testing.T, params ...accumParam) {
 
-	s := createTimeseriesBackend()
-	defer s.Close()
+	s, port := tcpudp.NewUDPServer(&defaultConf, true)
+	defer s.Stop()
 
-	m := createTimelineManagerA(defaultTransportSize)
+	m := createTimelineManagerA(port, defaultTransportSize)
 	defer m.Shutdown()
 
 	expected := []*serializer.NumberPoint{}
@@ -154,10 +156,16 @@ func testAdd(t *testing.T, params ...accumParam) {
 		expected = append(expected, params[i].point)
 	}
 
-	<-time.After(2 * time.Second)
+	messages := make([]tcpudp.MessageData, len(params))
+	for i := 0; i < len(params); i++ {
+		messages[i] = <-s.MessageChannel()
+	}
 
-	requestData := gotesthttp.WaitForServerRequest(s, time.Second, 10*time.Second)
-	testRequestData(t, requestData, expected, true, true, applicationJSON)
+	sort.Sort(ByDate(messages))
+
+	for i := 0; i < len(params); i++ {
+		testReceivedData(t, &messages[i], expected[i], true)
+	}
 }
 
 // TestAccumulateOneTypeOneTime - tests the add operation
@@ -244,10 +252,11 @@ func TestAccumulateMultipleTypesMultipleTimesCustomHash(t *testing.T) {
 }
 
 func testDataTTL(t *testing.T, customHash bool) {
-	s := createTimeseriesBackend()
-	defer s.Close()
 
-	m := createTimelineManagerA(defaultTransportSize)
+	s, port := tcpudp.NewUDPServer(&defaultConf, true)
+	defer s.Stop()
+
+	m := createTimelineManagerA(port, defaultTransportSize)
 	defer m.Shutdown()
 
 	n1 := newNumberPoint(0)
@@ -307,10 +316,10 @@ func TestDataTTLCustomHash(t *testing.T) {
 
 func testDataNoTTL(t *testing.T, customHash bool) {
 
-	s := createTimeseriesBackend()
-	defer s.Close()
+	s, port := tcpudp.NewUDPServer(&defaultConf, true)
+	defer s.Stop()
 
-	m := createTimelineManagerA(defaultTransportSize)
+	m := createTimelineManagerA(port, defaultTransportSize)
 	defer m.Shutdown()
 
 	n1 := newNumberPoint(0)

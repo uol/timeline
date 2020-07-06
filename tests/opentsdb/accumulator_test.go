@@ -8,7 +8,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/uol/funks"
-	gotesttelnet "github.com/uol/gotest/telnet"
+	"github.com/uol/gotest/tcpudp"
 	"github.com/uol/hashing"
 	serializer "github.com/uol/serializer/opentsdb"
 	"github.com/uol/timeline"
@@ -18,8 +18,6 @@ import (
 * The timeline library tests.
 * @author rnojiri
 **/
-
-const defaultTransportSize int = 50
 
 // createTimelineManagerA - creates a new timeline manager
 func createTimelineManagerA(port, transportSize int) *timeline.Manager {
@@ -60,7 +58,7 @@ func genCustomHash() string {
 
 func testStorage(t *testing.T, customHash bool) {
 
-	s, port := gotesttelnet.NewServer(&defaultConf, true)
+	s, port := tcpudp.NewTCPServer(&defaultConf, true)
 	defer s.Stop()
 
 	m := createTimelineManagerA(port, defaultTransportSize)
@@ -96,7 +94,7 @@ func TestStorageCustomHash(t *testing.T) {
 
 func testDataNoTTL(t *testing.T, customHash bool) {
 
-	s, port := gotesttelnet.NewServer(&defaultConf, true)
+	s, port := tcpudp.NewTCPServer(&defaultConf, true)
 	defer s.Stop()
 
 	m := createTimelineManagerA(port, defaultTransportSize)
@@ -190,7 +188,7 @@ type accumParam struct {
 // testAdd - tests the add operation
 func testAdd(t *testing.T, params ...accumParam) {
 
-	s, port := gotesttelnet.NewServer(&defaultConf, true)
+	s, port := tcpudp.NewTCPServer(&defaultConf, true)
 	defer s.Stop()
 
 	m := createTimelineManagerA(port, defaultTransportSize)
@@ -299,7 +297,7 @@ func TestAccumulateMultipleTypesMultipleTimesCustomHash(t *testing.T) {
 
 func testDataTTL(t *testing.T, customHash bool) {
 
-	s, port := gotesttelnet.NewServer(&defaultConf, true)
+	s, port := tcpudp.NewTCPServer(&defaultConf, true)
 	defer s.Stop()
 
 	m := createTimelineManagerA(port, defaultTransportSize)

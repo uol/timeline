@@ -9,7 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/uol/funks"
-	gotesttelnet "github.com/uol/gotest/telnet"
+	"github.com/uol/gotest/tcpudp"
 	"github.com/uol/hashing"
 	serializer "github.com/uol/serializer/opentsdb"
 	"github.com/uol/timeline"
@@ -82,7 +82,7 @@ func buildOpenTSDBCmd(items []serializer.ArrayItem) []string {
 }
 
 // testFlattenedValue - tests some inputed values
-func testFlattenedValue(t *testing.T, s *gotesttelnet.Server, m *timeline.Manager, operation timeline.FlatOperation, items []serializer.ArrayItem, expectedItems []serializer.ArrayItem) {
+func testFlattenedValue(t *testing.T, s *tcpudp.TCPServer, m *timeline.Manager, operation timeline.FlatOperation, items []serializer.ArrayItem, expectedItems []serializer.ArrayItem) {
 
 	numItems := len(items)
 	for i := 0; i < numItems; i++ {
@@ -96,7 +96,7 @@ func testFlattenedValue(t *testing.T, s *gotesttelnet.Server, m *timeline.Manage
 }
 
 // testItemsAgainstReceivedLines - test the expected items againt the received lines
-func testItemsAgainstReceivedLines(t *testing.T, s *gotesttelnet.Server, expectedItems []serializer.ArrayItem) {
+func testItemsAgainstReceivedLines(t *testing.T, s *tcpudp.TCPServer, expectedItems []serializer.ArrayItem) {
 
 	expectedLines := buildOpenTSDBCmd(expectedItems)
 
@@ -129,7 +129,7 @@ func testItemsAgainstReceivedLines(t *testing.T, s *gotesttelnet.Server, expecte
 // TestSum - tests the sum operation
 func TestSum(t *testing.T) {
 
-	s, port := gotesttelnet.NewServer(&defaultConf, true)
+	s, port := tcpudp.NewTCPServer(&defaultConf, true)
 	defer s.Stop()
 
 	m := createTimelineManagerF(true, port, defaultTransportSize)
@@ -150,7 +150,7 @@ func TestSum(t *testing.T) {
 // TestAvg - tests the avg operation
 func TestAvg(t *testing.T) {
 
-	s, port := gotesttelnet.NewServer(&defaultConf, true)
+	s, port := tcpudp.NewTCPServer(&defaultConf, true)
 	defer s.Stop()
 
 	m := createTimelineManagerF(true, port, defaultTransportSize)
@@ -174,7 +174,7 @@ func TestAvg(t *testing.T) {
 // TestMax - tests the max operation
 func TestMax(t *testing.T) {
 
-	s, port := gotesttelnet.NewServer(&defaultConf, true)
+	s, port := tcpudp.NewTCPServer(&defaultConf, true)
 	defer s.Stop()
 
 	m := createTimelineManagerF(true, port, defaultTransportSize)
@@ -201,7 +201,7 @@ func TestMax(t *testing.T) {
 // TestMin - tests the min operation
 func TestMin(t *testing.T) {
 
-	s, port := gotesttelnet.NewServer(&defaultConf, true)
+	s, port := tcpudp.NewTCPServer(&defaultConf, true)
 	defer s.Stop()
 
 	m := createTimelineManagerF(true, port, defaultTransportSize)
@@ -228,7 +228,7 @@ func TestMin(t *testing.T) {
 // TestCount - tests the count operation
 func TestCount(t *testing.T) {
 
-	s, port := gotesttelnet.NewServer(&defaultConf, true)
+	s, port := tcpudp.NewTCPServer(&defaultConf, true)
 	defer s.Stop()
 
 	m := createTimelineManagerF(true, port, defaultTransportSize)

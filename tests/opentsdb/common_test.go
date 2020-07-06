@@ -4,7 +4,7 @@ import (
 	"time"
 
 	"github.com/uol/funks"
-	gotesttelnet "github.com/uol/gotest/telnet"
+	"github.com/uol/gotest/tcpudp"
 	serializer "github.com/uol/serializer/opentsdb"
 	"github.com/uol/timeline"
 )
@@ -15,16 +15,19 @@ import (
 **/
 
 var (
-	defaultConf gotesttelnet.Configuration = gotesttelnet.Configuration{
-		Host:               "localhost",
-		MessageChannelSize: 10,
-		ReadBufferSize:     512,
-		ReadTimeout:        3 * time.Second,
+	defaultConf tcpudp.TCPConfiguration = tcpudp.TCPConfiguration{
+		ServerConfiguration: tcpudp.ServerConfiguration{
+			Host:               "localhost",
+			MessageChannelSize: 10,
+			ReadBufferSize:     512,
+		},
+		ReadTimeout: 3 * time.Second,
 	}
 )
 
 const (
-	timeBetweenBatches int = 50
+	timeBetweenBatches   int = 50
+	defaultTransportSize int = 50
 )
 
 // createOpenTSDBTransport - creates the opentsdb transport
@@ -43,10 +46,15 @@ func createOpenTSDBTransport(transportBufferSize int, batchSendInterval time.Dur
 			TimeBetweenBatches:   funks.Duration{Duration: time.Duration(timeBetweenBatches) * time.Millisecond},
 		},
 		ReadBufferSize: 64,
-		MaxReadTimeout: funks.Duration{
-			Duration: time.Second,
+
+		TCPUDPTransportConfig: timeline.TCPUDPTransportConfig{
+			ReconnectionTimeout: funks.Duration{
+				Duration: time.Second,
+			},
+			DisconnectAfterWrites:  false,
+			MaxReconnectionRetries: 3,
 		},
-		ReconnectionTimeout: funks.Duration{
+		MaxReadTimeout: funks.Duration{
 			Duration: time.Second,
 		},
 	}

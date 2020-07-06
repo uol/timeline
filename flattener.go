@@ -125,7 +125,7 @@ func (f *Flattener) ProcessMapEntry(entry interface{}) bool {
 	if err != nil {
 		if logh.ErrorEnabled {
 			ev := f.loggers.Error()
-			if f.transport.PrintStackOnError() {
+			if f.dataProcessorCore.configuration.PrintStackOnError {
 				ev = ev.Caller()
 			}
 			ev.Err(err).Msg("error on flatten operation")
@@ -138,7 +138,7 @@ func (f *Flattener) ProcessMapEntry(entry interface{}) bool {
 	if err != nil {
 		if logh.ErrorEnabled {
 			ev := f.loggers.Error()
-			if f.transport.PrintStackOnError() {
+			if f.dataProcessorCore.configuration.PrintStackOnError {
 				ev = ev.Caller()
 			}
 			ev.Err(err).Msg("error on casting operation")

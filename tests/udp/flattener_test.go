@@ -1,11 +1,11 @@
-package timeline_http_test
+package timeline_udp_test
 
 import (
 	"testing"
 	"time"
 
 	"github.com/uol/funks"
-	gotesthttp "github.com/uol/gotest/http"
+	"github.com/uol/gotest/tcpudp"
 	"github.com/uol/hashing"
 	serializer "github.com/uol/serializer/json"
 	"github.com/uol/timeline"
@@ -17,14 +17,14 @@ import (
 **/
 
 // createTimelineManagerF - creates a new timeline manager
-func createTimelineManagerF(start bool) *timeline.Manager {
+func createTimelineManagerF(port int, start bool) *timeline.Manager {
 
 	backend := timeline.Backend{
-		Host: testServerHost,
-		Port: testServerPort,
+		Host: defaultConf.Host,
+		Port: port,
 	}
 
-	transport := createHTTPTransport(defaultTransportSize, time.Second, applicationJSON, nil)
+	transport := createUDPTransport(defaultTransportSize, time.Second, nil)
 
 	conf := &timeline.DataTransformerConfig{
 		CycleDuration: funks.Duration{
@@ -65,10 +65,10 @@ func toGenericParameters(point *serializer.NumberPoint) []interface{} {
 // testFlatOperation - tests some operation
 func testFlatOperation(t *testing.T, operation timeline.FlatOperation, expectedValue float64, opValues ...float64) {
 
-	s := createTimeseriesBackend()
-	defer s.Close()
+	s, port := tcpudp.NewUDPServer(&defaultConf, true)
+	defer s.Stop()
 
-	m := createTimelineManagerF(true)
+	m := createTimelineManagerF(port, true)
 	defer m.Shutdown()
 
 	number := newNumberPoint(expectedValue)
@@ -79,12 +79,10 @@ func testFlatOperation(t *testing.T, operation timeline.FlatOperation, expectedV
 		m.FlattenJSON(operation, numberPoint, toGenericParameters(number)...)
 	}
 
-	<-time.After(2 * time.Second)
-
 	number.Value = expectedValue
 
-	requestData := gotesthttp.WaitForServerRequest(s, time.Second, 10*time.Second)
-	testRequestData(t, requestData, []*serializer.NumberPoint{number}, true, false, applicationJSON)
+	message := <-s.MessageChannel()
+	testReceivedData(t, &message, number, true)
 }
 
 // TestSendSum - tests the sum operation

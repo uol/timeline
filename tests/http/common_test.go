@@ -6,7 +6,8 @@ import (
 
 	"github.com/uol/funks"
 	gotesthttp "github.com/uol/gotest/http"
-	serializer "github.com/uol/serializer/json"
+	jsonserializer "github.com/uol/serializer/json"
+	serializer "github.com/uol/serializer/serializer"
 	"github.com/uol/timeline"
 )
 
@@ -16,9 +17,10 @@ import (
 **/
 
 const (
-	testServerHost string = "localhost"
-	testServerPort int    = 18080
-	channelSize    int    = 10
+	defaultTransportSize int    = 100
+	testServerHost       string = "localhost"
+	testServerPort       int    = 18080
+	channelSize          int    = 10
 )
 
 // createTimeseriesBackend - creates a new test server simulating a timeseries backend
@@ -44,13 +46,18 @@ func createTimeseriesBackend() *gotesthttp.Server {
 	)
 }
 
+type contentType string
+
 const (
-	numberPoint = "numberJSON"
-	textPoint   = "textJSON"
+	numberPoint         string      = "numberJSON"
+	textPoint           string      = "textJSON"
+	applicationJSON     contentType = "application/json"
+	applicationCustom   contentType = "application/custom"
+	applicationOpenTSDB contentType = "application/opentsdb"
 )
 
 // createHTTPTransport - creates the http transport with custom batch send interval
-func createHTTPTransport(transportBufferSize int, batchSendInterval time.Duration) *timeline.HTTPTransport {
+func createHTTPTransport(transportBufferSize int, batchSendInterval time.Duration, ctype contentType, s serializer.Serializer) *timeline.HTTPTransport {
 
 	transportConf := timeline.HTTPTransportConfig{
 		DefaultTransportConfig: timeline.DefaultTransportConfig{
@@ -67,41 +74,60 @@ func createHTTPTransport(transportBufferSize int, batchSendInterval time.Duratio
 		ServiceEndpoint:        "/api/put",
 		Method:                 "PUT",
 		ExpectedResponseStatus: 201,
-		TimestampProperty:      "timestamp",
-		ValueProperty:          "value",
+		CustomSerializerConfig: timeline.CustomSerializerConfig{
+			TimestampProperty: "timestamp",
+			ValueProperty:     "value",
+		},
+		Headers: map[string]string{
+			"content-type": string(ctype),
+		},
 	}
 
-	transport, err := timeline.NewHTTPTransport(&transportConf)
+	if s == nil {
+		jsons := jsonserializer.New(256)
+
+		err := jsons.Add(
+			numberPoint,
+			jsonserializer.NumberPoint{},
+			"metric",
+			"value",
+			"timestamp",
+			"tags",
+		)
+
+		if err != nil {
+			panic(err)
+		}
+
+		err = jsons.Add(
+			textPoint,
+			jsonserializer.TextPoint{},
+			"metric",
+			"text",
+			"timestamp",
+			"tags",
+		)
+
+		if err != nil {
+			panic(err)
+		}
+
+		s = jsons
+	}
+
+	transport, err := timeline.NewHTTPTransport(&transportConf, s)
 	if err != nil {
 		panic(err)
 	}
-
-	transport.AddJSONMapping(
-		numberPoint,
-		serializer.NumberPoint{},
-		"metric",
-		"value",
-		"timestamp",
-		"tags",
-	)
-
-	transport.AddJSONMapping(
-		textPoint,
-		serializer.TextPoint{},
-		"metric",
-		"text",
-		"timestamp",
-		"tags",
-	)
 
 	return transport
 }
 
 // newNumberPoint - creates a new number point
-func newNumberPoint(value float64) *serializer.NumberPoint {
+func newNumberPoint(value float64) *jsonserializer.NumberPoint {
 
-	return &serializer.NumberPoint{
-		Point: serializer.Point{
+	return &jsonserializer.NumberPoint{
+		Point: jsonserializer.Point{
 			Metric:    "number-metric",
 			Timestamp: time.Now().Unix(),
 			Tags: map[string]string{
@@ -114,10 +140,10 @@ func newNumberPoint(value float64) *serializer.NumberPoint {
 }
 
 // newTextPoint - creates a new text point
-func newTextPoint(text string) *serializer.TextPoint {
+func newTextPoint(text string) *jsonserializer.TextPoint {
 
-	return &serializer.TextPoint{
-		Point: serializer.Point{
+	return &jsonserializer.TextPoint{
+		Point: jsonserializer.Point{
 			Metric:    "text-metric",
 			Timestamp: time.Now().Unix(),
 			Tags: map[string]string{
@@ -129,13 +155,13 @@ func newTextPoint(text string) *serializer.TextPoint {
 	}
 }
 
-type ByMetric []serializer.NumberPoint
+type ByMetric []jsonserializer.NumberPoint
 
 func (a ByMetric) Len() int           { return len(a) }
 func (a ByMetric) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByMetric) Less(i, j int) bool { return a[i].Metric < a[j].Metric }
 
-type ByMetricP []*serializer.NumberPoint
+type ByMetricP []*jsonserializer.NumberPoint
 
 func (a ByMetricP) Len() int           { return len(a) }
 func (a ByMetricP) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }

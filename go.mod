@@ -8,7 +8,7 @@ require (
 	github.com/stretchr/testify v1.6.1
 	github.com/uol/funks v1.2.1
 	github.com/uol/gofiles v1.0.0
-	github.com/uol/gotest v1.3.1
+	github.com/uol/gotest v1.5.0
 	github.com/uol/hashing v1.0.1
 	github.com/uol/logh v1.0.1
 	github.com/uol/scheduler v1.0.0

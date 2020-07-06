@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"reflect"
 	"sort"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -12,7 +13,10 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	gotesthttp "github.com/uol/gotest/http"
-	serializer "github.com/uol/serializer/json"
+	utils "github.com/uol/gotest/utils"
+	jsonserializer "github.com/uol/serializer/json"
+	otsdbserializer "github.com/uol/serializer/opentsdb"
+	serializer "github.com/uol/serializer/serializer"
 	"github.com/uol/timeline"
 )
 
@@ -22,14 +26,14 @@ import (
 **/
 
 // createTimelineManager - creates a new timeline manager
-func createTimelineManager(start bool, transportSize int, batchSendInterval time.Duration) *timeline.Manager {
+func createTimelineManager(start bool, transportSize int, batchSendInterval time.Duration, ctype contentType, s serializer.Serializer) *timeline.Manager {
 
 	backend := timeline.Backend{
 		Host: testServerHost,
 		Port: testServerPort,
 	}
 
-	transport := createHTTPTransport(transportSize, batchSendInterval)
+	transport := createHTTPTransport(transportSize, batchSendInterval, ctype, s)
 
 	manager, err := timeline.NewManager(transport, nil, nil, &backend)
 	if err != nil {
@@ -50,7 +54,7 @@ func createTimelineManager(start bool, transportSize int, batchSendInterval time
 // testSerializeCompareNumber - compares a serialized json and a json struct
 func testSerializeCompareNumber(t *testing.T, text string, expected interface{}, ignoreTimestamp bool) bool {
 
-	var actual []serializer.NumberPoint
+	var actual []jsonserializer.NumberPoint
 	err := json.Unmarshal([]byte(text), &actual)
 	if !assert.Nil(t, err, "error unmarshalling to number point") {
 		return false
@@ -62,7 +66,7 @@ func testSerializeCompareNumber(t *testing.T, text string, expected interface{},
 // testSerializeCompareText - compares a serialized json and a json struct
 func testSerializeCompareText(t *testing.T, text string, expected interface{}) bool {
 
-	var actual []serializer.TextPoint
+	var actual []jsonserializer.TextPoint
 	err := json.Unmarshal([]byte(text), &actual)
 	if !assert.Nil(t, err, "error unmarshalling to text point") {
 		return false
@@ -71,15 +75,23 @@ func testSerializeCompareText(t *testing.T, text string, expected interface{}) b
 	return testTextPoint(t, expected, actual)
 }
 
-// testRequestData - tests the request data
-func testRequestData(t *testing.T, requestData *gotesthttp.RequestData, expected interface{}, isNumber, ignoreTimestamp bool) bool {
+// testRequestMetadata - tests only the request metadata
+func testRequestMetadata(t *testing.T, requestData *gotesthttp.RequestData, expectedContentType contentType) bool {
 
 	result := true
 
 	result = result && assert.NotNil(t, requestData, "request data cannot be null")
 	result = result && assert.Equal(t, "/api/put", requestData.URI, "expected /api/put as endpoint")
 	result = result && assert.Equal(t, "PUT", requestData.Method, "expected PUT as method")
-	result = result && assert.Equal(t, "application/json", requestData.Headers.Get("Content-type"), "expected aplication/json as content-type header")
+	result = result && assert.Equal(t, string(expectedContentType), requestData.Headers.Get("Content-type"), "expected aplication/json as content-type header")
+
+	return result
+}
+
+// testRequestData - tests the request data
+func testRequestData(t *testing.T, requestData *gotesthttp.RequestData, expected interface{}, isNumber, ignoreTimestamp bool, expectedContentType contentType) bool {
+
+	result := testRequestMetadata(t, requestData, expectedContentType)
 
 	if result {
 
@@ -104,12 +116,12 @@ func testTextPoint(t *testing.T, expected interface{}, actual interface{}) bool 
 		return false
 	}
 
-	expectedNumbers, ok := expected.([]*serializer.TextPoint)
+	expectedNumbers, ok := expected.([]*jsonserializer.TextPoint)
 	if !ok && !assert.True(t, ok, "expected value must be a text point type") {
 		return false
 	}
 
-	actualNumbers, ok := actual.([]serializer.TextPoint)
+	actualNumbers, ok := actual.([]jsonserializer.TextPoint)
 	if !ok && !assert.True(t, ok, "actual value must be a text point type") {
 		return false
 	}
@@ -146,12 +158,12 @@ func testNumberPoint(t *testing.T, expected interface{}, actual interface{}, ign
 		return false
 	}
 
-	expectedNumbers, ok := expected.([]*serializer.NumberPoint)
+	expectedNumbers, ok := expected.([]*jsonserializer.NumberPoint)
 	if !ok && !assert.True(t, ok, "expected value must be a number point type") {
 		return false
 	}
 
-	actualNumbers, ok := actual.([]serializer.NumberPoint)
+	actualNumbers, ok := actual.([]jsonserializer.NumberPoint)
 	if !ok && !assert.True(t, ok, "actual value must be a number point type") {
 		return false
 	}
@@ -188,7 +200,7 @@ func testNumberPoint(t *testing.T, expected interface{}, actual interface{}, ign
 }
 
 // toGenericParametersN - converts a number point to generic parameters
-func toGenericParametersN(point *serializer.NumberPoint) []interface{} {
+func toGenericParametersN(point *jsonserializer.NumberPoint) []interface{} {
 
 	return []interface{}{
 		"metric", point.Metric,
@@ -199,7 +211,7 @@ func toGenericParametersN(point *serializer.NumberPoint) []interface{} {
 }
 
 // toGenericParametersT - converts a number point to generic parameters
-func toGenericParametersT(point *serializer.TextPoint) []interface{} {
+func toGenericParametersT(point *jsonserializer.TextPoint) []interface{} {
 
 	return []interface{}{
 		"metric", point.Metric,
@@ -215,12 +227,12 @@ func TestSendNumber(t *testing.T) {
 	s := createTimeseriesBackend()
 	defer s.Close()
 
-	m := createTimelineManager(true, defaultTransportSize, time.Second)
+	m := createTimelineManager(true, defaultTransportSize, time.Second, applicationJSON, nil)
 	defer m.Shutdown()
 
 	number := newNumberPoint(1)
 
-	err := m.SendHTTP(numberPoint, toGenericParametersN(number)...)
+	err := m.SendJSON(numberPoint, toGenericParametersN(number)...)
 	if !assert.NoError(t, err, "no error expected when sending number") {
 		return
 	}
@@ -228,7 +240,7 @@ func TestSendNumber(t *testing.T) {
 	<-time.After(2 * time.Second)
 
 	requestData := gotesthttp.WaitForServerRequest(s, time.Second, 10*time.Second)
-	testRequestData(t, requestData, []*serializer.NumberPoint{number}, true, false)
+	testRequestData(t, requestData, []*jsonserializer.NumberPoint{number}, true, false, applicationJSON)
 }
 
 // TestSendText - tests when the lib fires a event
@@ -237,18 +249,18 @@ func TestSendText(t *testing.T) {
 	s := createTimeseriesBackend()
 	defer s.Close()
 
-	m := createTimelineManager(true, defaultTransportSize, time.Second)
+	m := createTimelineManager(true, defaultTransportSize, time.Second, applicationJSON, nil)
 	defer m.Shutdown()
 
 	text := newTextPoint("test")
 
-	err := m.SendHTTP(textPoint, toGenericParametersT(text)...)
+	err := m.SendJSON(textPoint, toGenericParametersT(text)...)
 	assert.NoError(t, err, "no error expected when sending text")
 
 	<-time.After(2 * time.Second)
 
 	requestData := gotesthttp.WaitForServerRequest(s, time.Second, 10*time.Second)
-	testRequestData(t, requestData, []*serializer.TextPoint{text}, false, false)
+	testRequestData(t, requestData, []*jsonserializer.TextPoint{text}, false, false, applicationJSON)
 }
 
 // TestSendNumberArray - tests when the lib fires a event
@@ -257,20 +269,20 @@ func TestSendNumberArray(t *testing.T) {
 	s := createTimeseriesBackend()
 	defer s.Close()
 
-	m := createTimelineManager(true, defaultTransportSize, time.Second)
+	m := createTimelineManager(true, defaultTransportSize, time.Second, applicationJSON, nil)
 	defer m.Shutdown()
 
-	numbers := []*serializer.NumberPoint{newNumberPoint(1), newNumberPoint(2), newNumberPoint(3)}
+	numbers := []*jsonserializer.NumberPoint{newNumberPoint(1), newNumberPoint(2), newNumberPoint(3)}
 
 	for _, n := range numbers {
-		err := m.SendHTTP(numberPoint, toGenericParametersN(n)...)
+		err := m.SendJSON(numberPoint, toGenericParametersN(n)...)
 		assert.NoError(t, err, "no error expected when sending number")
 	}
 
 	<-time.After(2 * time.Second)
 
 	requestData := gotesthttp.WaitForServerRequest(s, time.Second, 10*time.Second)
-	testRequestData(t, requestData, numbers, true, false)
+	testRequestData(t, requestData, numbers, true, false, applicationJSON)
 }
 
 // TestSendTextArray - tests when the lib fires a event
@@ -279,20 +291,20 @@ func TestSendTextArray(t *testing.T) {
 	s := createTimeseriesBackend()
 	defer s.Close()
 
-	m := createTimelineManager(true, defaultTransportSize, time.Second)
+	m := createTimelineManager(true, defaultTransportSize, time.Second, applicationJSON, nil)
 	defer m.Shutdown()
 
-	texts := []*serializer.TextPoint{newTextPoint("1"), newTextPoint("2"), newTextPoint("3")}
+	texts := []*jsonserializer.TextPoint{newTextPoint("1"), newTextPoint("2"), newTextPoint("3")}
 
 	for _, n := range texts {
-		err := m.SendHTTP(textPoint, toGenericParametersT(n)...)
+		err := m.SendJSON(textPoint, toGenericParametersT(n)...)
 		assert.NoError(t, err, "no error expected when sending text")
 	}
 
 	<-time.After(2 * time.Second)
 
 	requestData := gotesthttp.WaitForServerRequest(s, time.Second, 10*time.Second)
-	testRequestData(t, requestData, texts, false, false)
+	testRequestData(t, requestData, texts, false, false, applicationJSON)
 }
 
 // TestSendCustomNumber - tests configuring the json variables
@@ -301,24 +313,24 @@ func TestSendCustomNumber(t *testing.T) {
 	s := createTimeseriesBackend()
 	defer s.Close()
 
-	m := createTimelineManager(false, defaultTransportSize, time.Second)
-	defer m.Shutdown()
+	const custom = "customPoint"
+
+	cs := jsonserializer.New(128)
 
 	number := newNumberPoint(1.0)
 
-	transport := m.GetTransport().(*timeline.HTTPTransport)
-
-	const custom = "customPoint"
-
 	// only value is variable
-	err := transport.AddJSONMapping(custom, *number, "value")
+	err := cs.Add(custom, *number, "value")
 	if !assert.NoError(t, err, "no error adding custom configuration") {
 		return
 	}
 
+	m := createTimelineManager(false, defaultTransportSize, time.Second, applicationCustom, cs)
+	defer m.Shutdown()
+
 	m.Start()
 
-	err = m.SendHTTP(custom, "value", 5.0)
+	err = m.SendJSON(custom, "value", 5.0)
 	if !assert.NoError(t, err, "no error expected when sending number") {
 		return
 	}
@@ -328,7 +340,7 @@ func TestSendCustomNumber(t *testing.T) {
 	<-time.After(2 * time.Second)
 
 	requestData := gotesthttp.WaitForServerRequest(s, time.Second, 10*time.Second)
-	testRequestData(t, requestData, []*serializer.NumberPoint{number}, true, false)
+	testRequestData(t, requestData, []*jsonserializer.NumberPoint{number}, true, false, applicationCustom)
 }
 
 // TestSendCustomText - tests configuring the json variables
@@ -337,24 +349,24 @@ func TestSendCustomText(t *testing.T) {
 	s := createTimeseriesBackend()
 	defer s.Close()
 
-	m := createTimelineManager(false, defaultTransportSize, time.Second)
-	defer m.Shutdown()
+	cs := jsonserializer.New(128)
 
 	text := newTextPoint("woohoo")
-
-	transport := m.GetTransport().(*timeline.HTTPTransport)
 
 	const custom = "customPoint"
 
 	// only value is variable
-	err := transport.AddJSONMapping(custom, *text, "text")
+	err := cs.Add(custom, *text, "text")
 	if !assert.NoError(t, err, "no error adding custom configuration") {
 		return
 	}
 
+	m := createTimelineManager(false, defaultTransportSize, time.Second, applicationCustom, cs)
+	defer m.Shutdown()
+
 	m.Start()
 
-	err = m.SendHTTP(custom, "text", "modified")
+	err = m.SendJSON(custom, "text", "modified")
 	if !assert.NoError(t, err, "no error expected when sending text") {
 		return
 	}
@@ -364,39 +376,39 @@ func TestSendCustomText(t *testing.T) {
 	<-time.After(2 * time.Second)
 
 	requestData := gotesthttp.WaitForServerRequest(s, time.Second, 10*time.Second)
-	testRequestData(t, requestData, []*serializer.TextPoint{text}, false, false)
+	testRequestData(t, requestData, []*jsonserializer.TextPoint{text}, false, false, applicationCustom)
 }
 
 // TestNumberSerialization - tests configuring the json variables
 func TestNumberSerialization(t *testing.T) {
 
-	m := createTimelineManager(false, defaultTransportSize, time.Second)
+	m := createTimelineManager(false, defaultTransportSize, time.Second, applicationJSON, nil)
 	defer m.Shutdown()
 
 	number := newNumberPoint(15)
 
-	serialized, err := m.SerializeHTTP(numberPoint, toGenericParametersN(number)...)
+	serialized, err := m.SerializeJSON(numberPoint, toGenericParametersN(number)...)
 	if !assert.NoError(t, err, "no error expected when serializing number") {
 		return
 	}
 
-	testSerializeCompareNumber(t, fmt.Sprintf("[%s]", serialized), []*serializer.NumberPoint{number}, false)
+	testSerializeCompareNumber(t, fmt.Sprintf("[%s]", serialized), []*jsonserializer.NumberPoint{number}, false)
 }
 
 // TestTextSerialization - tests configuring the json variables
 func TestTextSerialization(t *testing.T) {
 
-	m := createTimelineManager(false, defaultTransportSize, time.Second)
+	m := createTimelineManager(false, defaultTransportSize, time.Second, applicationJSON, nil)
 	defer m.Shutdown()
 
 	text := newTextPoint("serialization")
 
-	serialized, err := m.SerializeHTTP(textPoint, toGenericParametersT(text)...)
+	serialized, err := m.SerializeJSON(textPoint, toGenericParametersT(text)...)
 	if !assert.NoError(t, err, "no error expected when serializing text") {
 		return
 	}
 
-	testSerializeCompareText(t, fmt.Sprintf("[%s]", serialized), []*serializer.TextPoint{text})
+	testSerializeCompareText(t, fmt.Sprintf("[%s]", serialized), []*jsonserializer.TextPoint{text})
 }
 
 // TestExceedingBufferSize - tests when the buffer exceeds its size
@@ -420,17 +432,17 @@ func TestExceedingBufferSize(t *testing.T) {
 		}
 	}()
 
-	m := createTimelineManager(true, bufferSize, batchSendInterval)
+	m := createTimelineManager(true, bufferSize, batchSendInterval, applicationJSON, nil)
 	defer m.Shutdown()
 
-	numbers := make([]*serializer.NumberPoint, numPoints)
+	numbers := make([]*jsonserializer.NumberPoint, numPoints)
 	firstPointTime := time.Now().Unix()
 
 	for i := 0; i < numPoints; i++ {
 
 		numbers[i] = newNumberPoint(float64(i))
 
-		err := m.SendHTTP(numberPoint, toGenericParametersN(numbers[i])...)
+		err := m.SendJSON(numberPoint, toGenericParametersN(numbers[i])...)
 		if !assert.NoError(t, err, "no error expected when sending number") {
 			return
 		}
@@ -448,4 +460,73 @@ func TestExceedingBufferSize(t *testing.T) {
 	// the last time will be the same as $batchSendDuration
 	assert.GreaterOrEqual(t, requests[numRequests-1].Date.Unix()-firstPointTime, int64(batchSendInterval.Seconds()), "expected greater than batch interval")
 	assert.LessOrEqual(t, requests[numRequests-1].Date.Unix()-firstPointTime, int64(batchSendInterval.Seconds()+1), "expected less than batch interval plus one second")
+}
+
+// TestSendOpenTSDBFormat - tests using the opentsdb serializer
+func TestSendOpenTSDBFormat(t *testing.T) {
+
+	s := createTimeseriesBackend()
+	defer s.Close()
+
+	cs := otsdbserializer.New(128)
+
+	m := createTimelineManager(false, defaultTransportSize, time.Second, applicationOpenTSDB, cs)
+	defer m.Shutdown()
+
+	m.Start()
+
+	items := []*otsdbserializer.ArrayItem{
+		{
+			Metric:    "opentsdb-metric1",
+			Timestamp: time.Now().Unix(),
+			Value:     float64(utils.RandomInt(0, 1000)),
+			Tags: []interface{}{
+				"tag1", "val1",
+				"tag2", "val2",
+				"tag3", "val3",
+			},
+		},
+		{
+			Metric:    "opentsdb-metric2",
+			Timestamp: time.Now().Unix(),
+			Value:     float64(utils.RandomInt(0, 1000)),
+			Tags: []interface{}{
+				"tag4", "val4",
+				"tag5", "val5",
+			},
+		},
+		{
+			Metric:    "opentsdb-metric3",
+			Timestamp: time.Now().Unix(),
+			Value:     float64(utils.RandomInt(0, 1000)),
+			Tags: []interface{}{
+				"tag6", "val6",
+			},
+		},
+	}
+
+	m.Send(items)
+
+	<-time.After(2 * time.Second)
+
+	requestData := gotesthttp.WaitForServerRequest(s, time.Second, 10*time.Second)
+
+	result := testRequestMetadata(t, requestData, applicationOpenTSDB)
+	if !result {
+		return
+	}
+
+	assert.Equal(t,
+		fmt.Sprintf(
+			strings.ReplaceAll(`put %s %d %d tag1=val1 tag2=val2 tag3=val3
+			put %s %d %d tag4=val4 tag5=val5
+			put %s %d %d tag6=val6
+			`, "\t", ""),
+			items[0].Metric, items[0].Timestamp, int(items[0].Value),
+			items[1].Metric, items[1].Timestamp, int(items[1].Value),
+			items[2].Metric, items[2].Timestamp, int(items[2].Value),
+		),
+		requestData.Body,
+		"expected same item",
+	)
 }

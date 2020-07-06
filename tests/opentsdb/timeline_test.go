@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-	gotesttelnet "github.com/uol/gotest/telnet"
+	"github.com/uol/gotest/tcpudp"
 	serializer "github.com/uol/serializer/opentsdb"
 	"github.com/uol/timeline"
 )
@@ -48,7 +48,7 @@ func createTimelineManager(start bool, port, transportSize int, batchSendInterva
 }
 
 // testValue - tests some inputed value
-func testValue(t *testing.T, s *gotesttelnet.Server, m *timeline.Manager, items ...serializer.ArrayItem) {
+func testValue(t *testing.T, s *tcpudp.TCPServer, m *timeline.Manager, items ...serializer.ArrayItem) {
 
 	numItems := len(items)
 	for i := 0; i < numItems; i++ {
@@ -89,7 +89,7 @@ func TestExceedingBufferSize(t *testing.T) {
 	requestTimes := make([]int64, numPoints)
 	batchSendInterval := 1 * time.Second
 
-	s, port := gotesttelnet.NewServer(&defaultConf, true)
+	s, port := tcpudp.NewTCPServer(&defaultConf, true)
 	defer s.Stop()
 
 	m := createTimelineManager(true, port, bufferSize, batchSendInterval)
@@ -156,7 +156,7 @@ func TestExceedingBufferSize(t *testing.T) {
 // TestSingleInput - tests a simple input
 func TestSingleInput(t *testing.T) {
 
-	s, port := gotesttelnet.NewServer(&defaultConf, true)
+	s, port := tcpudp.NewTCPServer(&defaultConf, true)
 	defer s.Stop()
 
 	m := createTimelineManager(true, port, defaultTransportSize, 1*time.Second)
@@ -179,7 +179,7 @@ func TestSingleInput(t *testing.T) {
 // TestMultiInput - tests a multi input
 func TestMultiInput(t *testing.T) {
 
-	s, port := gotesttelnet.NewServer(&defaultConf, true)
+	s, port := tcpudp.NewTCPServer(&defaultConf, true)
 	defer s.Stop()
 
 	m := createTimelineManager(true, port, defaultTransportSize, 1*time.Second)
@@ -222,7 +222,7 @@ func TestMultiInput(t *testing.T) {
 // TestSerialization - tests configuring the opentsdb variables
 func TestSerialization(t *testing.T) {
 
-	s, port := gotesttelnet.NewServer(&defaultConf, true)
+	s, port := tcpudp.NewTCPServer(&defaultConf, true)
 	defer s.Stop()
 
 	m := createTimelineManager(true, port, defaultTransportSize, 1*time.Second)

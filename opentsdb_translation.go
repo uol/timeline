@@ -98,3 +98,9 @@ func (t *OpenTSDBTransport) AccumulatedDataToDataChannelItem(point *AccumulatedD
 
 	return item, nil
 }
+
+// Serialize - renders the text using the configured serializer
+func (t *OpenTSDBTransport) Serialize(item interface{}) (string, error) {
+
+	return t.serializer.SerializeGeneric(item)
+}

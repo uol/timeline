@@ -18,10 +18,11 @@ type Backend struct {
 
 // DataTransformerConfig - flattener configuration
 type DataTransformerConfig struct {
-	CycleDuration    funks.Duration    `json:"cycleDuration,omitempty"`
-	HashingAlgorithm hashing.Algorithm `json:"hashingAlgorithm,omitempty"`
-	HashSize         int               `json:"hashSize,omitempty"`
-	isSHAKE          bool
+	CycleDuration     funks.Duration    `json:"cycleDuration,omitempty"`
+	HashingAlgorithm  hashing.Algorithm `json:"hashingAlgorithm,omitempty"`
+	HashSize          int               `json:"hashSize,omitempty"`
+	PrintStackOnError bool              `json:"printStackOnError,omitempty"`
+	isSHAKE           bool
 }
 
 // DefaultTransportConfig - the default fields used by the transport configuration
@@ -36,22 +37,40 @@ type DefaultTransportConfig struct {
 	PrintStackOnError    bool           `json:"printStackOnError,omitempty"`
 }
 
-// HTTPTransportConfig - has all HTTP event manager configurations
-type HTTPTransportConfig struct {
-	DefaultTransportConfig
-	ServiceEndpoint        string `json:"serviceEndpoint,omitempty"`
-	Method                 string `json:"method,omitempty"`
-	ExpectedResponseStatus int    `json:"expectedResponseStatus,omitempty"`
-	TimestampProperty      string `json:"timestampProperty,omitempty"`
-	ValueProperty          string `json:"valueProperty,omitempty"`
+// CustomSerializerConfig - configures a customized serialization transport
+type CustomSerializerConfig struct {
+	TimestampProperty string `json:"timestampProperty,omitempty"`
+	ValueProperty     string `json:"valueProperty,omitempty"`
 }
 
-// OpenTSDBTransportConfig - has all openTSDB event manager configurations
-type OpenTSDBTransportConfig struct {
+// HTTPTransportConfig - has all http transport configurations
+type HTTPTransportConfig struct {
 	DefaultTransportConfig
-	ReadBufferSize         int            `json:"readBufferSize,omitempty"`
-	MaxReadTimeout         funks.Duration `json:"maxReadTimeout,omitempty"`
+	ServiceEndpoint        string            `json:"serviceEndpoint,omitempty"`
+	Method                 string            `json:"method,omitempty"`
+	ExpectedResponseStatus int               `json:"expectedResponseStatus,omitempty"`
+	Headers                map[string]string `json:"headers,omitempty"`
+	CustomSerializerConfig
+}
+
+// TCPUDPTransportConfig - defines some common parameters for a tcp/udp connection
+type TCPUDPTransportConfig struct {
 	ReconnectionTimeout    funks.Duration `json:"reconnectionTimeout,omitempty"`
 	MaxReconnectionRetries int            `json:"maxReconnectionRetries,omitempty"`
 	DisconnectAfterWrites  bool           `json:"disconnectAfterWrites,omitempty"`
+}
+
+// OpenTSDBTransportConfig - has all opentsdb transport configurations
+type OpenTSDBTransportConfig struct {
+	DefaultTransportConfig
+	ReadBufferSize int            `json:"readBufferSize,omitempty"`
+	MaxReadTimeout funks.Duration `json:"maxReadTimeout,omitempty"`
+	TCPUDPTransportConfig
+}
+
+// UDPTransportConfig - has all udp transport configurations
+type UDPTransportConfig struct {
+	DefaultTransportConfig
+	TCPUDPTransportConfig
+	CustomSerializerConfig
 }

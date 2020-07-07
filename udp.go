@@ -66,6 +66,7 @@ func (t *UDPTransport) BuildContextualLogger(path ...string) {
 	}
 
 	t.core.loggers = logh.CreateContextualLogger(logContext...)
+	t.udpNetworkConn.loggers = t.core.loggers
 }
 
 // ConfigureBackend - configures the backend

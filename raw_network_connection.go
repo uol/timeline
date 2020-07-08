@@ -118,7 +118,7 @@ func (t *rawNetworkConnection) writePayload(payload string) bool {
 	}
 
 	if logh.DebugEnabled {
-		logh.Debug().Msgf("%d bytes were written to the connection", n)
+		t.loggers.Debug().Msgf("%d bytes were written to the connection", n)
 	}
 
 	if !t.custom.read(t.connection, t.logConnectionError) {

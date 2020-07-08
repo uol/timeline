@@ -252,6 +252,11 @@ func (t *transportCore) serialize(dataList []interface{}) (payload []string, siz
 
 	payload, err = t.transport.SerializePayload(filtered)
 	if err != nil {
+		ev := t.loggers.Error()
+		if t.defaultConfiguration.PrintStackOnError {
+			ev = ev.Caller()
+		}
+		ev.Err(err).Msg("error serializing points")
 		return
 	}
 
@@ -277,7 +282,6 @@ func (t *transportCore) debugInput(array []interface{}) {
 	if t.defaultConfiguration.DebugInput && logh.DebugEnabled {
 
 		for _, item := range array {
-
 			t.loggers.Debug().Str("point", "input").Msgf("%+v", item)
 		}
 	}

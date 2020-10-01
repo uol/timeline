@@ -65,7 +65,7 @@ type Transport interface {
 	DataChannelItemToAccumulatedData(configuration *DataTransformerConfig, item interface{}, calculateHash bool) (Hashable, error)
 
 	// AccumulatedDataToDataChannelItem - converts the accumulated data to the data channel item
-	AccumulatedDataToDataChannelItem(item *AccumulatedData) (interface{}, error)
+	AccumulatedDataToDataChannelItem(item *accumulatedData) (interface{}, error)
 
 	// BuildContextualLogger - build the contextual logger using more info
 	BuildContextualLogger(path ...string)
@@ -252,11 +252,6 @@ func (t *transportCore) serialize(dataList []interface{}) (payload []string, siz
 
 	payload, err = t.transport.SerializePayload(filtered)
 	if err != nil {
-		ev := t.loggers.Error()
-		if t.defaultConfiguration.PrintStackOnError {
-			ev = ev.Caller()
-		}
-		ev.Err(err).Msg("error serializing points")
 		return
 	}
 
@@ -282,6 +277,7 @@ func (t *transportCore) debugInput(array []interface{}) {
 	if t.defaultConfiguration.DebugInput && logh.DebugEnabled {
 
 		for _, item := range array {
+
 			t.loggers.Debug().Str("point", "input").Msgf("%+v", item)
 		}
 	}

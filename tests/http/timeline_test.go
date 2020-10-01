@@ -83,7 +83,7 @@ func testRequestMetadata(t *testing.T, requestData *gotesthttp.RequestData, expe
 	result = result && assert.NotNil(t, requestData, "request data cannot be null")
 	result = result && assert.Equal(t, "/api/put", requestData.URI, "expected /api/put as endpoint")
 	result = result && assert.Equal(t, "PUT", requestData.Method, "expected PUT as method")
-	result = result && assert.Equal(t, string(expectedContentType), requestData.Headers.Get("Content-type"), "expected aplication/json as content-type header")
+	result = result && assert.Equalf(t, string(applicationJSON), requestData.Headers.Get("Content-type"), "expected application/json as content-type header", expectedContentType)
 
 	return result
 }

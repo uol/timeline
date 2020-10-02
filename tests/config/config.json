@@ -32,7 +32,8 @@
     "dataTransformer": {
         "hashingAlgorithm": "shake128",
         "hashSize": 7,
-        "cycleDuration": "15s"
+        "cycleDuration": "15s",
+        "pointValueBufferSize": 100
     },
     "backend": {
         "host": "host1",

@@ -39,10 +39,14 @@ func createTimeseriesBackend() *gotesthttp.Server {
 	}
 
 	return gotesthttp.NewServer(
-		testServerHost,
-		testServerPort,
-		channelSize,
-		[]gotesthttp.ResponseData{responses},
+		&gotesthttp.Configuration{
+			Host:        testServerHost,
+			Port:        testServerPort,
+			ChannelSize: channelSize,
+			Responses: map[string][]gotesthttp.ResponseData{
+				"default": {responses},
+			},
+		},
 	)
 }
 

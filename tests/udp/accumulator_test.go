@@ -161,7 +161,7 @@ func testAdd(t *testing.T, params ...accumParam) {
 		messages[i] = <-s.MessageChannel()
 	}
 
-	sort.Sort(ByDate(messages))
+	sort.Sort(ByMessage(messages))
 
 	for i := 0; i < len(params); i++ {
 		testReceivedData(t, &messages[i], expected[i], true)

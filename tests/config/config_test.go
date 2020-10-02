@@ -61,9 +61,10 @@ var expected = MainConf{
 		},
 	},
 	DataTransformer: &timeline.DataTransformerConfig{
-		HashingAlgorithm: hashing.SHAKE128,
-		HashSize:         7,
-		CycleDuration:    *funks.ForceNewStringDuration("15s"),
+		HashingAlgorithm:     hashing.SHAKE128,
+		HashSize:             7,
+		CycleDuration:        *funks.ForceNewStringDuration("15s"),
+		PointValueBufferSize: 100,
 	},
 	Backend: &timeline.Backend{
 		Host: "host1",

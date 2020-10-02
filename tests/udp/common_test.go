@@ -104,3 +104,9 @@ type ByDate []tcpudp.MessageData
 func (a ByDate) Len() int           { return len(a) }
 func (a ByDate) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
 func (a ByDate) Less(i, j int) bool { return a[i].Date.Unix() < a[j].Date.Unix() }
+
+type ByMessage []tcpudp.MessageData
+
+func (a ByMessage) Len() int           { return len(a) }
+func (a ByMessage) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByMessage) Less(i, j int) bool { return a[i].Message < a[j].Message }

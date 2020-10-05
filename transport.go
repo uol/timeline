@@ -203,7 +203,11 @@ func (t *transportCore) releaseBuffer() {
 			}
 		} else {
 			if logh.InfoEnabled {
-				t.loggers.Info().Msgf("batch of %d points were sent! (%d bytes)", size, len(payload))
+				byteCount := 0
+				for _, p := range payload {
+					byteCount += len(p)
+				}
+				t.loggers.Info().Msgf("batch of %d points were sent! (%d bytes)", size, byteCount)
 			}
 		}
 

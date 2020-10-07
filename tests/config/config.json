@@ -33,7 +33,7 @@
         "hashingAlgorithm": "shake128",
         "hashSize": 7,
         "cycleDuration": "15s",
-        "pointValueBufferSize": 100
+        "pointValueBufferSize": 1000
     },
     "backend": {
         "host": "host1",

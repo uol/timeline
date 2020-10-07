@@ -39,9 +39,6 @@ type dataProcessorEntry interface {
 
 	// Clone - does a struct copy
 	Clone() interface{}
-
-	// ReleaseResources - release this item resources
-	ReleaseResources()
 }
 
 // dataProcessorCore - contains the common data

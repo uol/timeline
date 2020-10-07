@@ -66,12 +66,6 @@ func (ad *accumulatedData) Clone() interface{} {
 	return nil
 }
 
-// ReleaseResources - release this item resources
-func (ad *accumulatedData) ReleaseResources() {
-
-	// no need
-}
-
 // Accumulator - the struct
 type Accumulator struct {
 	dataProcessorCore

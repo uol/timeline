@@ -34,8 +34,7 @@ func createTimelineManagerF(start bool, port, transportSize int) *timeline.Manag
 		CycleDuration: funks.Duration{
 			Duration: time.Millisecond * 900,
 		},
-		HashingAlgorithm:     hashing.SHA256,
-		PointValueBufferSize: 1000,
+		HashingAlgorithm: hashing.SHA256,
 	}
 
 	flattener := timeline.NewFlattener(conf)

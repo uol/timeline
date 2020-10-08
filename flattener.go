@@ -64,19 +64,13 @@ type Flattener struct {
 type mapEntry struct {
 	flattenerPointData
 	values buffer.Buffer
+	sync.Mutex
 }
 
-// Clone - does a struct copy
-func (me *mapEntry) Clone() interface{} {
-
-	return &mapEntry{
-		flattenerPointData: flattenerPointData{
-			operation:       me.operation,
-			timestamp:       me.timestamp,
-			dataChannelItem: me.dataChannelItem,
-		},
-		values: me.values,
-	}
+// Release - releases the resources
+func (ad *mapEntry) Release() {
+	ad.values.Release()
+	return
 }
 
 // NewFlattener - creates a new flattener
@@ -135,11 +129,9 @@ func (f *Flattener) Add(point *FlattenerPoint) error {
 }
 
 // ProcessMapEntry - process the values from an entry
-func (f *Flattener) ProcessMapEntry(entry dataProcessorEntry) bool {
+func (f *Flattener) ProcessMapEntry(entry DataProcessorEntry) bool {
 
-	copy := entry.Clone()
-
-	newValue, err := f.flatten(copy.(*mapEntry))
+	newValue, err := f.flatten(entry.(*mapEntry))
 	if err != nil {
 		if logh.ErrorEnabled {
 			ev := f.loggers.Error()

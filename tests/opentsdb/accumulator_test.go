@@ -292,7 +292,7 @@ func TestAccumulateMultipleTypesMultipleTimes(t *testing.T) {
 // TestAccumulateMultipleTypesMultipleTimesCustomHash - tests the add operation with custom hash
 func TestAccumulateMultipleTypesMultipleTimesCustomHash(t *testing.T) {
 
-	testAdd(t, buildAccumParameters(1, 5, 1+uint64(rand.Int63n(50)), true)...)
+	testAdd(t, buildAccumParameters(1, 5, 1+uint64(rand.Int63n(5)), true)...)
 }
 
 func testDataTTL(t *testing.T, customHash bool) {

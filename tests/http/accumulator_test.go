@@ -184,7 +184,7 @@ func TestAccumulateOneTypeMultipleTimes(t *testing.T) {
 
 	testAdd(t, accumParam{
 		point:  newNumberPoint(0),
-		number: 100 + uint64(rand.Int63n(5000)),
+		number: 100 + uint64(rand.Int63n(100)),
 	})
 }
 
@@ -193,7 +193,7 @@ func TestAccumulateOneTypeMultipleTimesCustomHash(t *testing.T) {
 
 	testAdd(t, accumParam{
 		point:      newNumberPoint(0),
-		number:     100 + uint64(rand.Int63n(5000)),
+		number:     100 + uint64(rand.Int63n(100)),
 		customHash: true,
 	})
 }

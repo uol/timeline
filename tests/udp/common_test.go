@@ -18,7 +18,7 @@ import (
 var (
 	defaultConf tcpudp.ServerConfiguration = tcpudp.ServerConfiguration{
 		Host:               "localhost",
-		MessageChannelSize: 10,
+		MessageChannelSize: 5000,
 		ReadBufferSize:     512,
 	}
 )
@@ -26,8 +26,8 @@ var (
 type contentType string
 
 const (
-	timeBetweenBatches   int    = 50
-	defaultTransportSize int    = 50
+	timeBetweenBatches   int    = 500
+	defaultTransportSize int    = 500
 	numberPoint          string = "numberJSON"
 )
 

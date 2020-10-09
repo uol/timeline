@@ -21,6 +21,7 @@ var (
 		MessageChannelSize: 5000,
 		ReadBufferSize:     512,
 	}
+	manualModeArray = []bool{false, true}
 )
 
 type contentType string

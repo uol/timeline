@@ -44,8 +44,11 @@ type Transport interface {
 	// SerializePayload - serializes a list of generic data
 	SerializePayload(dataList []interface{}) (payload []string, err error)
 
-	// Start - starts this transport
-	Start() error
+	// Start - starts this transport (pass true if you want to call SendData() manually)
+	Start(manualMode bool) error
+
+	// SendData - releases the point buffer and send all data
+	SendData() error
 
 	// Close - closes this transport
 	Close()
@@ -87,6 +90,7 @@ type transportCore struct {
 	loggers              *logh.ContextualLogger
 	started              uint32
 	defaultConfiguration *DefaultTransportConfig
+	manualMode           uint32
 }
 
 // Validate - validates the default itens from the configuration
@@ -112,7 +116,7 @@ func (c *DefaultTransportConfig) Validate() error {
 }
 
 // Start - starts the transport
-func (t *transportCore) Start() error {
+func (t *transportCore) Start(manualMode bool) error {
 
 	if atomic.LoadUint32(&t.started) == 1 {
 		return nil
@@ -125,7 +129,11 @@ func (t *transportCore) Start() error {
 	t.pointBuffer = buffer.New()
 	atomic.StoreUint32(&t.started, 1)
 
-	go t.transferDataLoop()
+	if !manualMode {
+		go t.transferDataLoop()
+	} else {
+		atomic.StoreUint32(&t.manualMode, 1)
+	}
 
 	return nil
 }
@@ -140,12 +148,12 @@ func (t *transportCore) transferDataLoop() {
 	for {
 		<-time.After(t.batchSendInterval)
 
-		t.releaseBuffer()
+		t.SendData()
 	}
 }
 
-// releaseBuffer - releases the point buffer
-func (t *transportCore) releaseBuffer() {
+// SendData - releases the point buffer and send all data
+func (t *transportCore) SendData() error {
 
 	numPoints := t.pointBuffer.GetSize()
 
@@ -153,7 +161,7 @@ func (t *transportCore) releaseBuffer() {
 		if logh.DebugEnabled {
 			t.loggers.Debug().Msg("buffer is empty, no data will be send")
 		}
-		return
+		return nil
 	}
 
 	if logh.InfoEnabled {
@@ -190,7 +198,7 @@ func (t *transportCore) releaseBuffer() {
 				}
 				ev.Err(err).Msg("error serializing data")
 			}
-			return
+			return err
 		}
 
 		err = t.transport.TransferData(payload)
@@ -202,20 +210,21 @@ func (t *transportCore) releaseBuffer() {
 				}
 				ev.Err(err).Msg("error transferring data")
 			}
-		} else {
-			if logh.InfoEnabled {
-				byteCount := 0
-				for _, p := range payload {
-					byteCount += len(p)
-				}
-				t.loggers.Info().Msgf("batch of %d points were sent! (%d bytes)", size, byteCount)
+			return err
+		}
+
+		if logh.InfoEnabled {
+			byteCount := 0
+			for _, p := range payload {
+				byteCount += len(p)
 			}
+			t.loggers.Info().Msgf("batch of %d points were sent! (%d bytes)", size, byteCount)
 		}
 
 		<-time.After(t.defaultConfiguration.TimeBetweenBatches.Duration)
 	}
 
-	return
+	return nil
 }
 
 // serialize - serializes the sent data

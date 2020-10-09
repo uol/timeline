@@ -17,7 +17,7 @@ import (
 **/
 
 // createTimelineManagerF - creates a new timeline manager
-func createTimelineManagerF(port int, start bool) *timeline.Manager {
+func createTimelineManagerF(port int, start, manualMode bool) *timeline.Manager {
 
 	backend := timeline.Backend{
 		Host: defaultConf.Host,
@@ -41,7 +41,7 @@ func createTimelineManagerF(port int, start bool) *timeline.Manager {
 	}
 
 	if start {
-		err = manager.Start()
+		err = manager.Start(manualMode)
 		if err != nil {
 			panic(err)
 		}
@@ -68,7 +68,7 @@ func testFlatOperation(t *testing.T, operation timeline.FlatOperation, expectedV
 	s, port := tcpudp.NewUDPServer(&defaultConf, true)
 	defer s.Stop()
 
-	m := createTimelineManagerF(port, true)
+	m := createTimelineManagerF(port, true, false)
 	defer m.Shutdown()
 
 	number := newNumberPoint(expectedValue)

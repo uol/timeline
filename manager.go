@@ -2,6 +2,7 @@ package timeline
 
 import (
 	"fmt"
+	"sync/atomic"
 )
 
 /**
@@ -17,6 +18,7 @@ type Manager struct {
 	flattener   *Flattener
 	accumulator *Accumulator
 	name        string
+	manualMode  uint32
 }
 
 // NewManager - creates a timeline manager
@@ -65,18 +67,22 @@ func NewManager(transport Transport, flattener, accumulator DataProcessor, backe
 }
 
 // Start - starts the manager
-func (m *Manager) Start() error {
+func (m *Manager) Start(manualMode bool) error {
 
-	err := m.transport.Start()
+	if manualMode {
+		atomic.StoreUint32(&m.manualMode, 1)
+	}
+
+	err := m.transport.Start(manualMode)
 	if err != nil {
 		return err
 	}
 
-	if m.flattener != nil {
+	if m.flattener != nil && !manualMode {
 		m.flattener.Start()
 	}
 
-	if m.accumulator != nil {
+	if m.accumulator != nil && !manualMode {
 		m.accumulator.Start()
 	}
 
@@ -103,4 +109,30 @@ func (m *Manager) Shutdown() {
 func (m *Manager) GetTransport() Transport {
 
 	return m.transport
+}
+
+// ProcessCycle - call process cycle manually
+func (m *Manager) ProcessCycle() {
+
+	if atomic.LoadUint32(&m.manualMode) == 0 {
+		return
+	}
+
+	if m.flattener != nil {
+		m.flattener.ProcessCycle()
+	}
+
+	if m.accumulator != nil {
+		m.accumulator.ProcessCycle()
+	}
+}
+
+// SendData - send data manually
+func (m *Manager) SendData() error {
+
+	if atomic.LoadUint32(&m.manualMode) == 0 {
+		return nil
+	}
+
+	return m.transport.SendData()
 }

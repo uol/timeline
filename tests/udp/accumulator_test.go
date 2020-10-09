@@ -22,7 +22,7 @@ import (
 **/
 
 // createTimelineManagerA - creates a new timeline manager
-func createTimelineManagerA(port, transportBufferSize int) *timeline.Manager {
+func createTimelineManagerA(port, transportBufferSize int, manualMode bool) *timeline.Manager {
 
 	backend := timeline.Backend{
 		Host: defaultConf.Host,
@@ -46,7 +46,7 @@ func createTimelineManagerA(port, transportBufferSize int) *timeline.Manager {
 		panic(err)
 	}
 
-	err = manager.Start()
+	err = manager.Start(manualMode)
 	if err != nil {
 		panic(err)
 	}
@@ -77,12 +77,12 @@ func genCustomHash() string {
 	return "http-custom-hash-" + strconv.FormatInt(rand.Int63(), 10)
 }
 
-func testStorage(t *testing.T, customStorage bool) {
+func testStorage(t *testing.T, customStorage, manualMode bool) {
 
 	s, port := tcpudp.NewUDPServer(&defaultConf, true)
 	defer s.Stop()
 
-	m := createTimelineManagerA(port, defaultTransportSize)
+	m := createTimelineManagerA(port, defaultTransportSize, manualMode)
 	defer m.Shutdown()
 
 	n := newNumberPoint(0)
@@ -97,13 +97,17 @@ func testStorage(t *testing.T, customStorage bool) {
 // TestStorage - tests the hash storage operation
 func TestStorage(t *testing.T) {
 
-	testStorage(t, false)
+	for _, v := range manualModeArray {
+		testStorage(t, false, v)
+	}
 }
 
 // TestCustomHashStorage - tests the custom hash storage operation
 func TestCustomHashStorage(t *testing.T) {
 
-	testStorage(t, true)
+	for _, v := range manualModeArray {
+		testStorage(t, true, v)
+	}
 }
 
 // incAccumulatedData - increments the accumulated data N times
@@ -130,12 +134,12 @@ type accumParam struct {
 }
 
 // testAdd - tests the add operation
-func testAdd(t *testing.T, params ...accumParam) {
+func testAdd(t *testing.T, manualMode bool, params ...accumParam) {
 
 	s, port := tcpudp.NewUDPServer(&defaultConf, true)
 	defer s.Stop()
 
-	m := createTimelineManagerA(port, defaultTransportSize)
+	m := createTimelineManagerA(port, defaultTransportSize, manualMode)
 	defer m.Shutdown()
 
 	expected := []*serializer.NumberPoint{}
@@ -156,6 +160,11 @@ func testAdd(t *testing.T, params ...accumParam) {
 		expected = append(expected, params[i].point)
 	}
 
+	if manualMode {
+		m.ProcessCycle()
+		m.SendData()
+	}
+
 	messages := make([]tcpudp.MessageData, len(params))
 	for i := 0; i < len(params); i++ {
 		messages[i] = <-s.MessageChannel()
@@ -171,39 +180,47 @@ func testAdd(t *testing.T, params ...accumParam) {
 // TestAccumulateOneTypeOneTime - tests the add operation
 func TestAccumulateOneTypeOneTime(t *testing.T) {
 
-	testAdd(t, accumParam{
-		point:  newNumberPoint(0),
-		number: 1,
-	})
+	for _, v := range manualModeArray {
+		testAdd(t, v, accumParam{
+			point:  newNumberPoint(0),
+			number: 1,
+		})
+	}
 }
 
 // TestAccumulateOneTypeOneTimeCustomHash - tests the add operation using custom hash
 func TestAccumulateOneTypeOneTimeCustomHash(t *testing.T) {
 
-	testAdd(t, accumParam{
-		point:      newNumberPoint(0),
-		number:     1,
-		customHash: true,
-	})
+	for _, v := range manualModeArray {
+		testAdd(t, v, accumParam{
+			point:      newNumberPoint(0),
+			number:     1,
+			customHash: true,
+		})
+	}
 }
 
 // TestAccumulateOneTypeMultipleTimes - tests the add operation
 func TestAccumulateOneTypeMultipleTimes(t *testing.T) {
 
-	testAdd(t, accumParam{
-		point:  newNumberPoint(0),
-		number: 100 + uint64(rand.Int63n(100)),
-	})
+	for _, v := range manualModeArray {
+		testAdd(t, v, accumParam{
+			point:  newNumberPoint(0),
+			number: 100 + uint64(rand.Int63n(100)),
+		})
+	}
 }
 
 // TestAccumulateOneTypeMultipleTimesCustomHash - tests the add operation using custom hash
 func TestAccumulateOneTypeMultipleTimesCustomHash(t *testing.T) {
 
-	testAdd(t, accumParam{
-		point:      newNumberPoint(0),
-		number:     100 + uint64(rand.Int63n(100)),
-		customHash: true,
-	})
+	for _, v := range manualModeArray {
+		testAdd(t, v, accumParam{
+			point:      newNumberPoint(0),
+			number:     100 + uint64(rand.Int63n(100)),
+			customHash: true,
+		})
+	}
 }
 
 // buildAccumParameters - builds the accumulated parameters
@@ -230,33 +247,41 @@ func buildAccumParameters(initial, max int, times uint64, customHash bool) []acc
 // TestAccumulateMultipleTypesOneTime - tests the add operation
 func TestAccumulateMultipleTypesOneTime(t *testing.T) {
 
-	testAdd(t, buildAccumParameters(1, 5, 1, false)...)
+	for _, v := range manualModeArray {
+		testAdd(t, v, buildAccumParameters(1, 5, 1, false)...)
+	}
 }
 
 // TestAccumulateMultipleTypesOneTimeCustomHash - tests the add operation using custom hash
 func TestAccumulateMultipleTypesOneTimeCustomHash(t *testing.T) {
 
-	testAdd(t, buildAccumParameters(1, 5, 1, true)...)
+	for _, v := range manualModeArray {
+		testAdd(t, v, buildAccumParameters(1, 5, 1, true)...)
+	}
 }
 
 // TestAccumulateMultipleTypesMultipleTimes - tests the add operation
 func TestAccumulateMultipleTypesMultipleTimes(t *testing.T) {
 
-	testAdd(t, buildAccumParameters(1, 5, 2+uint64(rand.Int63n(5)), false)...)
+	for _, v := range manualModeArray {
+		testAdd(t, v, buildAccumParameters(1, 5, 2+uint64(rand.Int63n(5)), false)...)
+	}
 }
 
 // TestAccumulateMultipleTypesMultipleTimesCustomHash - tests the add operation using custom hash
 func TestAccumulateMultipleTypesMultipleTimesCustomHash(t *testing.T) {
 
-	testAdd(t, buildAccumParameters(1, 5, 2+uint64(rand.Int63n(5)), true)...)
+	for _, v := range manualModeArray {
+		testAdd(t, v, buildAccumParameters(1, 5, 2+uint64(rand.Int63n(5)), true)...)
+	}
 }
 
-func testDataTTL(t *testing.T, customHash bool) {
+func testDataTTL(t *testing.T, customHash, manualMode bool) {
 
 	s, port := tcpudp.NewUDPServer(&defaultConf, true)
 	defer s.Stop()
 
-	m := createTimelineManagerA(port, defaultTransportSize)
+	m := createTimelineManagerA(port, defaultTransportSize, manualMode)
 	defer m.Shutdown()
 
 	n1 := newNumberPoint(0)
@@ -286,7 +311,10 @@ func testDataTTL(t *testing.T, customHash bool) {
 			return
 		}
 
-		<-time.After(time.Second)
+		<-time.After(900 * time.Millisecond)
+		if manualMode {
+			m.ProcessCycle()
+		}
 	}
 
 	err = m.IncrementAccumulatedData(hash1)
@@ -305,21 +333,25 @@ func testDataTTL(t *testing.T, customHash bool) {
 // TestDataTTL - tests the data TTL
 func TestDataTTL(t *testing.T) {
 
-	testDataTTL(t, false)
+	for _, v := range manualModeArray {
+		testDataTTL(t, false, v)
+	}
 }
 
 // TestDataTTLCustomHash - tests the data TTL using custom hash
 func TestDataTTLCustomHash(t *testing.T) {
 
-	testDataTTL(t, true)
+	for _, v := range manualModeArray {
+		testDataTTL(t, true, v)
+	}
 }
 
-func testDataNoTTL(t *testing.T, customHash bool) {
+func testDataNoTTL(t *testing.T, customHash, manualMode bool) {
 
 	s, port := tcpudp.NewUDPServer(&defaultConf, true)
 	defer s.Stop()
 
-	m := createTimelineManagerA(port, defaultTransportSize)
+	m := createTimelineManagerA(port, defaultTransportSize, manualMode)
 	defer m.Shutdown()
 
 	n1 := newNumberPoint(0)
@@ -343,6 +375,9 @@ func testDataNoTTL(t *testing.T, customHash bool) {
 	}
 
 	<-time.After(2 * time.Second)
+	if manualMode {
+		m.ProcessCycle()
+	}
 
 	err = m.IncrementAccumulatedData(hash2)
 	if !assert.Equal(t, timeline.ErrNotStored, err, "expected hash2 to be expired") {
@@ -358,11 +393,15 @@ func testDataNoTTL(t *testing.T, customHash bool) {
 // TestDataNoTTL - tests the data without TTL
 func TestDataNoTTL(t *testing.T) {
 
-	testDataNoTTL(t, false)
+	for _, v := range manualModeArray {
+		testDataNoTTL(t, false, v)
+	}
 }
 
 // TestDataNoTTLCustomHash - tests the data without TTL using custom hash
 func TestDataNoTTLCustomHash(t *testing.T) {
 
-	testDataNoTTL(t, true)
+	for _, v := range manualModeArray {
+		testDataNoTTL(t, true, v)
+	}
 }

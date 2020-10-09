@@ -24,7 +24,7 @@ import (
 **/
 
 // createTimelineManager - creates a new timeline manager
-func createTimelineManager(port int, start bool, transportSize int, batchSendInterval time.Duration, s serializer.Serializer) *timeline.Manager {
+func createTimelineManager(port int, start, manualMode bool, transportSize int, batchSendInterval time.Duration, s serializer.Serializer) *timeline.Manager {
 
 	backend := timeline.Backend{
 		Host: defaultConf.Host,
@@ -39,7 +39,7 @@ func createTimelineManager(port int, start bool, transportSize int, batchSendInt
 	}
 
 	if start {
-		err = manager.Start()
+		err = manager.Start(manualMode)
 		if err != nil {
 			panic(err)
 		}
@@ -102,7 +102,7 @@ func TestSendSingle(t *testing.T) {
 	s, port := tcpudp.NewUDPServer(&defaultConf, true)
 	defer s.Stop()
 
-	m := createTimelineManager(port, true, defaultTransportSize, time.Second, nil)
+	m := createTimelineManager(port, true, false, defaultTransportSize, time.Second, nil)
 	defer m.Shutdown()
 
 	number := newNumberPoint(1)
@@ -122,7 +122,7 @@ func TestSendMultiple(t *testing.T) {
 	s, port := tcpudp.NewUDPServer(&defaultConf, true)
 	defer s.Stop()
 
-	m := createTimelineManager(port, true, defaultTransportSize, time.Second, nil)
+	m := createTimelineManager(port, true, false, defaultTransportSize, time.Second, nil)
 	defer m.Shutdown()
 
 	numbers := []*jsonserializer.NumberPoint{newNumberPoint(1), newNumberPoint(2), newNumberPoint(3)}
@@ -156,10 +156,10 @@ func TestSendCustomJSON(t *testing.T) {
 		return
 	}
 
-	m := createTimelineManager(port, false, defaultTransportSize, time.Second, cs)
+	m := createTimelineManager(port, false, false, defaultTransportSize, time.Second, cs)
 	defer m.Shutdown()
 
-	m.Start()
+	m.Start(false)
 
 	err = m.SendJSON(custom, "value", 5.0)
 	if !assert.NoError(t, err, "no error expected when sending number") {
@@ -178,7 +178,7 @@ func TestSerialization(t *testing.T) {
 	s, port := tcpudp.NewUDPServer(&defaultConf, true)
 	defer s.Stop()
 
-	m := createTimelineManager(port, false, defaultTransportSize, time.Second, nil)
+	m := createTimelineManager(port, false, false, defaultTransportSize, time.Second, nil)
 	defer m.Shutdown()
 
 	number := newNumberPoint(15)
@@ -216,7 +216,7 @@ func TestExceedingBufferSize(t *testing.T) {
 		}
 	}()
 
-	m := createTimelineManager(port, true, bufferSize, batchSendInterval, nil)
+	m := createTimelineManager(port, true, false, bufferSize, batchSendInterval, nil)
 	defer m.Shutdown()
 
 	numbers := make([]*jsonserializer.NumberPoint, numPoints)
@@ -254,10 +254,10 @@ func TestSendOpenTSDBFormat(t *testing.T) {
 
 	cs := otsdbserializer.New(128)
 
-	m := createTimelineManager(port, false, defaultTransportSize, time.Second, cs)
+	m := createTimelineManager(port, false, false, defaultTransportSize, time.Second, cs)
 	defer m.Shutdown()
 
-	m.Start()
+	m.Start(false)
 
 	items := []*otsdbserializer.ArrayItem{
 		{

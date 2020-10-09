@@ -23,6 +23,8 @@ const (
 	channelSize          int    = 10
 )
 
+var manualModeArray = []bool{false, true}
+
 // createTimeseriesBackend - creates a new test server simulating a timeseries backend
 func createTimeseriesBackend() *gotesthttp.Server {
 

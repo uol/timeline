@@ -165,7 +165,7 @@ func (t *customSerializerTransport) accumulatedDataToDataChannelItem(point *accu
 
 	item, ok := point.data.(*serializer.ArrayItem)
 	if !ok {
-		return nil, fmt.Errorf("error casting accumulated data to data channel item: %+v", *point)
+		return nil, fmt.Errorf("error casting accumulated data to data channel item")
 	}
 
 	numParameters := len(item.Parameters)

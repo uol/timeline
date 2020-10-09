@@ -23,6 +23,7 @@ var (
 		},
 		ReadTimeout: 3 * time.Second,
 	}
+	manualModeArray = []bool{false, true}
 )
 
 const (

@@ -15,7 +15,7 @@ import (
 // DataProcessor - a interface for data processors
 type DataProcessor interface {
 
-	// Start - starts the data processor
+	// Start - starts the data processor (do not start if you want to call ProcessCycle() manually)
 	Start()
 
 	// Stop - stops the data processor
@@ -32,6 +32,9 @@ type DataProcessor interface {
 
 	// BuildContextualLogger - build the contextual logger using more info
 	BuildContextualLogger(path ...string)
+
+	// ProcessCycle - forces a new cycle process
+	ProcessCycle()
 }
 
 // DataProcessorEntry - an item from the data processor
@@ -69,7 +72,9 @@ func (d *dataProcessorCore) Stop() {
 		d.loggers.Info().Msg("closing...")
 	}
 
-	d.terminateChan <- struct{}{}
+	if d.terminateChan != nil {
+		d.terminateChan <- struct{}{}
+	}
 }
 
 // Start - starts the processor cycle
@@ -98,32 +103,38 @@ func (d *dataProcessorCore) Start() {
 			default:
 			}
 
-			count := 0
-
-			d.pointMap.Range(func(k, v interface{}) bool {
-
-				casted, ok := v.(DataProcessorEntry)
-				if !ok && logh.ErrorEnabled {
-					d.loggers.Error().Msgf("error casting object to DataProcessorEntry: %+v", v)
-					return false
-				}
-
-				casted.Lock()
-				defer casted.Unlock()
-
-				if delete := d.parent.ProcessMapEntry(casted); delete {
-					d.pointMap.Delete(k)
-					casted.Release()
-				}
-
-				count++
-
-				return true
-			})
-
-			if logh.DebugEnabled {
-				d.loggers.Debug().Msgf("%d points were processed", count)
-			}
+			d.ProcessCycle()
 		}
 	}()
+}
+
+// ProcessCycle - forces a new cycle process
+func (d *dataProcessorCore) ProcessCycle() {
+
+	count := 0
+
+	d.pointMap.Range(func(k, v interface{}) bool {
+
+		casted, ok := v.(DataProcessorEntry)
+		if !ok && logh.ErrorEnabled {
+			d.loggers.Error().Msgf("error casting object to DataProcessorEntry: %+v", v)
+			return false
+		}
+
+		casted.Lock()
+		defer casted.Unlock()
+
+		if delete := d.parent.ProcessMapEntry(casted); delete {
+			d.pointMap.Delete(k)
+			casted.Release()
+		}
+
+		count++
+
+		return true
+	})
+
+	if logh.DebugEnabled {
+		d.loggers.Debug().Msgf("%d points were processed", count)
+	}
 }

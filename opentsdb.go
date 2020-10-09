@@ -183,9 +183,9 @@ func (t *OpenTSDBTransport) MatchType(tt transportType) bool {
 }
 
 // Start - starts this transport
-func (t *OpenTSDBTransport) Start() error {
+func (t *OpenTSDBTransport) Start(manualMode bool) error {
 
-	return t.core.Start()
+	return t.core.Start(manualMode)
 }
 
 // Close - closes this transport
@@ -193,4 +193,9 @@ func (t *OpenTSDBTransport) Close() {
 
 	t.core.Close()
 	t.tcpNetworkConn.closeConnection()
+}
+
+// SendData - releases the point buffer and send all data
+func (t *OpenTSDBTransport) SendData() error {
+	return t.core.SendData()
 }

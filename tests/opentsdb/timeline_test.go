@@ -22,7 +22,7 @@ import (
 **/
 
 // createTimelineManager - creates a new timeline mr
-func createTimelineManager(start bool, port, transportSize int, batchSendInterval time.Duration) *timeline.Manager {
+func createTimelineManager(start, manualMode bool, port, transportSize int, batchSendInterval time.Duration) *timeline.Manager {
 
 	backend := timeline.Backend{
 		Host: defaultConf.Host,
@@ -37,7 +37,7 @@ func createTimelineManager(start bool, port, transportSize int, batchSendInterva
 	}
 
 	if start {
-		err = manager.Start()
+		err = manager.Start(manualMode)
 
 		if err != nil {
 			panic(err)
@@ -92,7 +92,7 @@ func TestExceedingBufferSize(t *testing.T) {
 	s, port := tcpudp.NewTCPServer(&defaultConf, true)
 	defer s.Stop()
 
-	m := createTimelineManager(true, port, bufferSize, batchSendInterval)
+	m := createTimelineManager(true, false, port, bufferSize, batchSendInterval)
 	defer m.Shutdown()
 
 	firstPointTime := time.Now().Unix()
@@ -159,7 +159,7 @@ func TestSingleInput(t *testing.T) {
 	s, port := tcpudp.NewTCPServer(&defaultConf, true)
 	defer s.Stop()
 
-	m := createTimelineManager(true, port, defaultTransportSize, 1*time.Second)
+	m := createTimelineManager(true, false, port, defaultTransportSize, 1*time.Second)
 	defer m.Shutdown()
 
 	testValue(t, s, m,
@@ -182,7 +182,7 @@ func TestMultiInput(t *testing.T) {
 	s, port := tcpudp.NewTCPServer(&defaultConf, true)
 	defer s.Stop()
 
-	m := createTimelineManager(true, port, defaultTransportSize, 1*time.Second)
+	m := createTimelineManager(true, false, port, defaultTransportSize, 1*time.Second)
 	defer m.Shutdown()
 
 	testValue(t, s, m,
@@ -225,7 +225,7 @@ func TestSerialization(t *testing.T) {
 	s, port := tcpudp.NewTCPServer(&defaultConf, true)
 	defer s.Stop()
 
-	m := createTimelineManager(true, port, defaultTransportSize, 1*time.Second)
+	m := createTimelineManager(true, false, port, defaultTransportSize, 1*time.Second)
 	defer m.Shutdown()
 
 	value := rand.Float64()

@@ -21,7 +21,7 @@ import (
 **/
 
 // createTimelineManagerF - creates a new timeline manager
-func createTimelineManagerF(start bool, port, transportSize int) *timeline.Manager {
+func createTimelineManagerF(start, manualMode bool, port, transportSize int) *timeline.Manager {
 
 	backend := timeline.Backend{
 		Host: defaultConf.Host,
@@ -45,7 +45,7 @@ func createTimelineManagerF(start bool, port, transportSize int) *timeline.Manag
 	}
 
 	if start {
-		err = manager.Start()
+		err = manager.Start(manualMode)
 		if err != nil {
 			panic(err)
 		}
@@ -82,7 +82,7 @@ func buildOpenTSDBCmd(items []serializer.ArrayItem) []string {
 }
 
 // testFlattenedValue - tests some inputed values
-func testFlattenedValue(t *testing.T, s *tcpudp.TCPServer, m *timeline.Manager, operation timeline.FlatOperation, items []serializer.ArrayItem, expectedItems []serializer.ArrayItem) {
+func testFlattenedValue(t *testing.T, s *tcpudp.TCPServer, m *timeline.Manager, operation timeline.FlatOperation, items []serializer.ArrayItem, expectedItems []serializer.ArrayItem, manualMode bool) {
 
 	numItems := len(items)
 	for i := 0; i < numItems; i++ {
@@ -90,6 +90,11 @@ func testFlattenedValue(t *testing.T, s *tcpudp.TCPServer, m *timeline.Manager, 
 		if err != nil {
 			panic(err)
 		}
+	}
+
+	if manualMode {
+		m.ProcessCycle()
+		m.SendData()
 	}
 
 	testItemsAgainstReceivedLines(t, s, expectedItems)
@@ -126,13 +131,13 @@ func testItemsAgainstReceivedLines(t *testing.T, s *tcpudp.TCPServer, expectedIt
 	}
 }
 
-// TestSum - tests the sum operation
-func TestSum(t *testing.T) {
+// testSum - tests the sum operation
+func testSum(t *testing.T, manualMode bool) {
 
 	s, port := tcpudp.NewTCPServer(&defaultConf, true)
 	defer s.Stop()
 
-	m := createTimelineManagerF(true, port, defaultTransportSize)
+	m := createTimelineManagerF(true, manualMode, port, defaultTransportSize)
 	defer m.Shutdown()
 
 	item := newArrayItem("sum", 10.0)
@@ -144,16 +149,25 @@ func TestSum(t *testing.T) {
 		timeline.Sum,
 		[]serializer.ArrayItem{item, item, item},
 		[]serializer.ArrayItem{expected},
+		manualMode,
 	)
 }
 
-// TestAvg - tests the avg operation
-func TestAvg(t *testing.T) {
+// TestSum - tests the sum operation
+func TestSum(t *testing.T) {
+
+	for _, v := range manualModeArray {
+		testSum(t, v)
+	}
+}
+
+// testAvg - tests the avg operation
+func testAvg(t *testing.T, manualMode bool) {
 
 	s, port := tcpudp.NewTCPServer(&defaultConf, true)
 	defer s.Stop()
 
-	m := createTimelineManagerF(true, port, defaultTransportSize)
+	m := createTimelineManagerF(true, manualMode, port, defaultTransportSize)
 	defer m.Shutdown()
 
 	item1 := newArrayItem("avg", 10.0)
@@ -168,16 +182,25 @@ func TestAvg(t *testing.T) {
 		timeline.Avg,
 		[]serializer.ArrayItem{item1, item1, item2},
 		[]serializer.ArrayItem{expected},
+		manualMode,
 	)
 }
 
-// TestMax - tests the max operation
-func TestMax(t *testing.T) {
+// TestAvg - tests the avg operation
+func TestAvg(t *testing.T) {
+
+	for _, v := range manualModeArray {
+		testAvg(t, v)
+	}
+}
+
+// testMax - tests the max operation
+func testMax(t *testing.T, manualMode bool) {
 
 	s, port := tcpudp.NewTCPServer(&defaultConf, true)
 	defer s.Stop()
 
-	m := createTimelineManagerF(true, port, defaultTransportSize)
+	m := createTimelineManagerF(true, manualMode, port, defaultTransportSize)
 	defer m.Shutdown()
 
 	item1 := newArrayItem("max", 1.0)
@@ -195,16 +218,25 @@ func TestMax(t *testing.T) {
 		timeline.Max,
 		[]serializer.ArrayItem{item1, item2, item3},
 		[]serializer.ArrayItem{expected},
+		manualMode,
 	)
 }
 
-// TestMin - tests the min operation
-func TestMin(t *testing.T) {
+// TestMax - tests the max operation
+func TestMax(t *testing.T) {
+
+	for _, v := range manualModeArray {
+		testMax(t, v)
+	}
+}
+
+// testMin - tests the min operation
+func testMin(t *testing.T, manualMode bool) {
 
 	s, port := tcpudp.NewTCPServer(&defaultConf, true)
 	defer s.Stop()
 
-	m := createTimelineManagerF(true, port, defaultTransportSize)
+	m := createTimelineManagerF(true, manualMode, port, defaultTransportSize)
 	defer m.Shutdown()
 
 	item1 := newArrayItem("min", 1.0)
@@ -222,16 +254,25 @@ func TestMin(t *testing.T) {
 		timeline.Min,
 		[]serializer.ArrayItem{item1, item2, item3},
 		[]serializer.ArrayItem{expected},
+		manualMode,
 	)
 }
 
-// TestCount - tests the count operation
-func TestCount(t *testing.T) {
+// TestMin - tests the max operation
+func TestMin(t *testing.T) {
+
+	for _, v := range manualModeArray {
+		testMin(t, v)
+	}
+}
+
+// testCount - tests the count operation
+func testCount(t *testing.T, manualMode bool) {
 
 	s, port := tcpudp.NewTCPServer(&defaultConf, true)
 	defer s.Stop()
 
-	m := createTimelineManagerF(true, port, defaultTransportSize)
+	m := createTimelineManagerF(true, manualMode, port, defaultTransportSize)
 	defer m.Shutdown()
 
 	item1 := newArrayItem("count", 1.0)
@@ -249,5 +290,14 @@ func TestCount(t *testing.T) {
 		timeline.Count,
 		[]serializer.ArrayItem{item1, item2, item3},
 		[]serializer.ArrayItem{expected},
+		manualMode,
 	)
+}
+
+// TestCount - tests the max operation
+func TestCount(t *testing.T) {
+
+	for _, v := range manualModeArray {
+		testCount(t, v)
+	}
 }

@@ -26,7 +26,7 @@ import (
 **/
 
 // createTimelineManager - creates a new timeline manager
-func createTimelineManager(start bool, transportSize int, batchSendInterval time.Duration, ctype contentType, s serializer.Serializer) *timeline.Manager {
+func createTimelineManager(start, manualMode bool, transportSize int, batchSendInterval time.Duration, ctype contentType, s serializer.Serializer) *timeline.Manager {
 
 	backend := timeline.Backend{
 		Host: testServerHost,
@@ -41,7 +41,7 @@ func createTimelineManager(start bool, transportSize int, batchSendInterval time
 	}
 
 	if start {
-		err = manager.Start()
+		err = manager.Start(manualMode)
 		if err != nil {
 			panic(err)
 		}
@@ -227,7 +227,7 @@ func TestSendNumber(t *testing.T) {
 	s := createTimeseriesBackend()
 	defer s.Close()
 
-	m := createTimelineManager(true, defaultTransportSize, time.Second, applicationJSON, nil)
+	m := createTimelineManager(true, false, defaultTransportSize, time.Second, applicationJSON, nil)
 	defer m.Shutdown()
 
 	number := newNumberPoint(1)
@@ -249,7 +249,7 @@ func TestSendText(t *testing.T) {
 	s := createTimeseriesBackend()
 	defer s.Close()
 
-	m := createTimelineManager(true, defaultTransportSize, time.Second, applicationJSON, nil)
+	m := createTimelineManager(true, false, defaultTransportSize, time.Second, applicationJSON, nil)
 	defer m.Shutdown()
 
 	text := newTextPoint("test")
@@ -269,7 +269,7 @@ func TestSendNumberArray(t *testing.T) {
 	s := createTimeseriesBackend()
 	defer s.Close()
 
-	m := createTimelineManager(true, defaultTransportSize, time.Second, applicationJSON, nil)
+	m := createTimelineManager(true, false, defaultTransportSize, time.Second, applicationJSON, nil)
 	defer m.Shutdown()
 
 	numbers := []*jsonserializer.NumberPoint{newNumberPoint(1), newNumberPoint(2), newNumberPoint(3)}
@@ -291,7 +291,7 @@ func TestSendTextArray(t *testing.T) {
 	s := createTimeseriesBackend()
 	defer s.Close()
 
-	m := createTimelineManager(true, defaultTransportSize, time.Second, applicationJSON, nil)
+	m := createTimelineManager(true, false, defaultTransportSize, time.Second, applicationJSON, nil)
 	defer m.Shutdown()
 
 	texts := []*jsonserializer.TextPoint{newTextPoint("1"), newTextPoint("2"), newTextPoint("3")}
@@ -325,10 +325,10 @@ func TestSendCustomNumber(t *testing.T) {
 		return
 	}
 
-	m := createTimelineManager(false, defaultTransportSize, time.Second, applicationCustom, cs)
+	m := createTimelineManager(false, false, defaultTransportSize, time.Second, applicationCustom, cs)
 	defer m.Shutdown()
 
-	m.Start()
+	m.Start(false)
 
 	err = m.SendJSON(custom, "value", 5.0)
 	if !assert.NoError(t, err, "no error expected when sending number") {
@@ -361,10 +361,10 @@ func TestSendCustomText(t *testing.T) {
 		return
 	}
 
-	m := createTimelineManager(false, defaultTransportSize, time.Second, applicationCustom, cs)
+	m := createTimelineManager(false, false, defaultTransportSize, time.Second, applicationCustom, cs)
 	defer m.Shutdown()
 
-	m.Start()
+	m.Start(false)
 
 	err = m.SendJSON(custom, "text", "modified")
 	if !assert.NoError(t, err, "no error expected when sending text") {
@@ -382,7 +382,7 @@ func TestSendCustomText(t *testing.T) {
 // TestNumberSerialization - tests configuring the json variables
 func TestNumberSerialization(t *testing.T) {
 
-	m := createTimelineManager(false, defaultTransportSize, time.Second, applicationJSON, nil)
+	m := createTimelineManager(false, false, defaultTransportSize, time.Second, applicationJSON, nil)
 	defer m.Shutdown()
 
 	number := newNumberPoint(15)
@@ -398,7 +398,7 @@ func TestNumberSerialization(t *testing.T) {
 // TestTextSerialization - tests configuring the json variables
 func TestTextSerialization(t *testing.T) {
 
-	m := createTimelineManager(false, defaultTransportSize, time.Second, applicationJSON, nil)
+	m := createTimelineManager(false, false, defaultTransportSize, time.Second, applicationJSON, nil)
 	defer m.Shutdown()
 
 	text := newTextPoint("serialization")
@@ -432,7 +432,7 @@ func TestExceedingBufferSize(t *testing.T) {
 		}
 	}()
 
-	m := createTimelineManager(true, bufferSize, batchSendInterval, applicationJSON, nil)
+	m := createTimelineManager(true, false, bufferSize, batchSendInterval, applicationJSON, nil)
 	defer m.Shutdown()
 
 	numbers := make([]*jsonserializer.NumberPoint, numPoints)
@@ -470,10 +470,10 @@ func TestSendOpenTSDBFormat(t *testing.T) {
 
 	cs := otsdbserializer.New(128)
 
-	m := createTimelineManager(false, defaultTransportSize, time.Second, applicationOpenTSDB, cs)
+	m := createTimelineManager(false, false, defaultTransportSize, time.Second, applicationOpenTSDB, cs)
 	defer m.Shutdown()
 
-	m.Start()
+	m.Start(false)
 
 	items := []*otsdbserializer.ArrayItem{
 		{

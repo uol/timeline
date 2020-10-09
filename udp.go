@@ -151,9 +151,9 @@ func (t *UDPTransport) MatchType(tt transportType) bool {
 }
 
 // Start - starts this transport
-func (t *UDPTransport) Start() error {
+func (t *UDPTransport) Start(manualMode bool) error {
 
-	return t.core.Start()
+	return t.core.Start(manualMode)
 }
 
 // Close - closes this transport
@@ -161,4 +161,9 @@ func (t *UDPTransport) Close() {
 
 	t.core.Close()
 	t.udpNetworkConn.closeConnection()
+}
+
+// SendData - releases the point buffer and send all data
+func (t *UDPTransport) SendData() error {
+	return t.core.SendData()
 }

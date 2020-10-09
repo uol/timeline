@@ -17,7 +17,7 @@ import (
 **/
 
 // createTimelineManagerF - creates a new timeline manager
-func createTimelineManagerF(start bool) *timeline.Manager {
+func createTimelineManagerF(start, manualMode bool) *timeline.Manager {
 
 	backend := timeline.Backend{
 		Host: testServerHost,
@@ -41,7 +41,7 @@ func createTimelineManagerF(start bool) *timeline.Manager {
 	}
 
 	if start {
-		err = manager.Start()
+		err = manager.Start(manualMode)
 		if err != nil {
 			panic(err)
 		}
@@ -63,12 +63,12 @@ func toGenericParameters(point *serializer.NumberPoint) []interface{} {
 }
 
 // testFlatOperation - tests some operation
-func testFlatOperation(t *testing.T, operation timeline.FlatOperation, expectedValue float64, opValues ...float64) {
+func testFlatOperation(t *testing.T, manualMode bool, operation timeline.FlatOperation, expectedValue float64, opValues ...float64) {
 
 	s := createTimeseriesBackend()
 	defer s.Close()
 
-	m := createTimelineManagerF(true)
+	m := createTimelineManagerF(true, manualMode)
 	defer m.Shutdown()
 
 	number := newNumberPoint(expectedValue)
@@ -79,40 +79,66 @@ func testFlatOperation(t *testing.T, operation timeline.FlatOperation, expectedV
 		m.FlattenJSON(operation, numberPoint, toGenericParameters(number)...)
 	}
 
-	<-time.After(2 * time.Second)
+	var waitFor time.Duration
+	if !manualMode {
+		<-time.After(2 * time.Second)
+		waitFor = time.Second
+	} else {
+		m.ProcessCycle()
+		m.SendData()
+		waitFor = time.Millisecond
+	}
 
 	number.Value = expectedValue
 
-	requestData := gotesthttp.WaitForServerRequest(s, time.Second, 10*time.Second)
+	requestData := gotesthttp.WaitForServerRequest(s, waitFor, 10*time.Second)
 	testRequestData(t, requestData, []*serializer.NumberPoint{number}, true, false, applicationJSON)
 }
 
 // TestSendSum - tests the sum operation
 func TestSendSum(t *testing.T) {
 
-	testFlatOperation(t, timeline.Sum, 11, 5.5, 1.24, 3.76, 0.5)
+	for _, v := range manualModeArray {
+		testFlatOperation(t, v, timeline.Sum, 11, 5.5, 1.24, 3.76, 0.5)
+	}
 }
 
 // TestSendAvg - tests the avg operation
 func TestSendAvg(t *testing.T) {
 
-	testFlatOperation(t, timeline.Avg, 40, 25, 25, 25, 25, 100)
+	for _, v := range manualModeArray {
+		testFlatOperation(t, v, timeline.Avg, 40, 25, 25, 25, 25, 100)
+	}
 }
 
 // TestSendMax - tests the max operation
 func TestSendMax(t *testing.T) {
 
-	testFlatOperation(t, timeline.Max, 10.8, 1, -200, 10.7, 10.8, 0, 5)
+	for _, v := range manualModeArray {
+		testFlatOperation(t, v, timeline.Max, 10.8, 1, -200, 10.7, 10.8, 0, 5)
+	}
 }
 
 // TestSendMin - tests the min operation
 func TestSendMin(t *testing.T) {
 
-	testFlatOperation(t, timeline.Min, -200, 1, -200, 10.7, 10.8, 0)
+	for _, v := range manualModeArray {
+		testFlatOperation(t, v, timeline.Min, -200, 1, -200, 10.7, 10.8, 0)
+	}
 }
 
 // TestCountMin - tests the count operation
 func TestCountMin(t *testing.T) {
 
-	testFlatOperation(t, timeline.Count, 5, 1, -200, 10.7, 10.8, 0)
+	for _, v := range manualModeArray {
+		testFlatOperation(t, v, timeline.Count, 5, 1, -200, 10.7, 10.8, 0)
+	}
+}
+
+// TestSendSum - tests the sum operation
+func TestManualModeSendSum(t *testing.T) {
+
+	for _, v := range manualModeArray {
+		testFlatOperation(t, v, timeline.Sum, 11, 5.5, 1.24, 3.76, 0.5)
+	}
 }
